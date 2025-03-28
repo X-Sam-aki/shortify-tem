@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Product } from '@/types/product';
-import { extractProductData } from '@/utils/productUtils';
+import { extractProductData, validateTemuUrl } from '@/utils/productUtils';
 
 interface ProductInputProps {
   onSubmit: (product: Product) => void;
@@ -25,22 +25,15 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
     }
   }, [savedProduct]);
 
-  const validateTemuUrl = (url: string) => {
-    // Basic validation, in a real app this would be more precise
-    const isValid = url.includes('temu.com');
-    if (!isValid) {
-      setUrlError('Please enter a valid Temu product URL');
-    } else {
-      setUrlError('');
-    }
-    return isValid;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateTemuUrl(url)) return;
+    if (!validateTemuUrl(url)) {
+      setUrlError('Please enter a valid Temu product URL (e.g., https://www.temu.com/product-12345.html)');
+      return;
+    }
     
+    setUrlError('');
     setIsLoading(true);
     
     try {
@@ -71,39 +64,44 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Input
-              placeholder="https://www.temu.com/product.html"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="input-field"
-              disabled={isLoading}
-            />
+          <div className="relative">
+            <div className="flex">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <LinkIcon className="h-4 w-4 text-gray-500" />
+                </div>
+                <Input
+                  placeholder="https://www.temu.com/product.html"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (urlError) setUrlError('');
+                  }}
+                  className="pl-10 input-field"
+                  disabled={isLoading}
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="ml-2 flex items-center"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
             {urlError && <p className="text-red-500 text-sm mt-1">{urlError}</p>}
           </div>
           
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mt-4">
             {savedProduct && (
               <div className="text-sm text-brand-purple">
                 <span className="font-medium">Using saved product:</span> {savedProduct.title}
               </div>
             )}
-            <Button 
-              type="submit" 
-              className="btn-primary flex items-center ml-auto"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Fetching product...
-                </>
-              ) : (
-                <>
-                  Next <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
           </div>
           
           <div className="mt-6 p-4 bg-gray-50 rounded-md">
@@ -112,15 +110,26 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
               You can enter any URL that includes "temu.com" to continue.
               The app will generate sample product data to demonstrate the workflow.
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="text-sm"
-              onClick={() => setUrl('https://www.temu.com/example-product.html')}
-              disabled={isLoading}
-            >
-              Use Sample URL
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="text-sm"
+                onClick={() => setUrl('https://www.temu.com/product-12345.html')}
+                disabled={isLoading}
+              >
+                Use Sample URL
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-sm"
+                onClick={() => setUrl('https://www.temu.com/products/wireless-earbuds-123456')}
+                disabled={isLoading}
+              >
+                Use Alternative URL Format
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>

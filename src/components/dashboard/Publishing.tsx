@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Upload, Clock, YoutubeIcon, Sparkles, Loader2 } from 'lucide-react';
 import { Product } from '@/types/product';
 import { cn } from '@/lib/utils';
+import VideoGenerationPreview from './VideoGenerationPreview';
 
 interface PublishingProps {
   product: Product;
@@ -206,55 +207,7 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
         
         {/* Preview Panel */}
         <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Video Summary</CardTitle>
-              <CardDescription>
-                Review before publishing
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="aspect-[9/16] bg-gray-200 rounded-md overflow-hidden relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <YoutubeIcon className="h-12 w-12 text-red-600" />
-                </div>
-                {product.images[0] && (
-                  <img 
-                    src={product.images[0]} 
-                    alt={product.title} 
-                    className="absolute inset-0 w-full h-full object-cover opacity-50"
-                  />
-                )}
-              </div>
-              
-              <div className="space-y-3 pt-2">
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500">TEMPLATE</h4>
-                  <p className="text-sm font-medium">{videoSettings.template.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500">MUSIC</h4>
-                  <p className="text-sm font-medium">{videoSettings.music.replace(/\b\w/g, l => l.toUpperCase())}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500">PUBLISHING</h4>
-                  <p className="text-sm font-medium">
-                    {publishOption === "now" 
-                      ? "Publish Immediately" 
-                      : date 
-                        ? `Scheduled for ${format(date, "PPP")}` 
-                        : "Schedule for Later"
-                    }
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="text-xs text-gray-500 justify-center">
-              Video will be optimized for YouTube Shorts (9:16)
-            </CardFooter>
-          </Card>
+          <VideoGenerationPreview product={product} videoSettings={videoSettings} />
           
           <div className="mt-4">
             <Card className="bg-brand-purple/5 border-brand-purple/30">

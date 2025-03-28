@@ -8,11 +8,50 @@ const sampleProductImages = [
   'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96806.jpg'
 ];
 
+/**
+ * Validates if a string is a proper Temu product URL
+ */
+export const validateTemuUrl = (url: string): boolean => {
+  // Basic validation for demonstration
+  // In a production app, this would be more sophisticated
+  const temuUrlPattern = /^https?:\/\/(?:www\.)?temu\.com\/([\w-]+\.html|products\/[\w-]+)/i;
+  return temuUrlPattern.test(url);
+};
+
+/**
+ * Extracts product ID from a Temu URL
+ */
+export const extractProductIdFromUrl = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    
+    // Handle different URL formats
+    // For paths like: /product-123456.html
+    const productFileMatch = pathParts[pathParts.length - 1].match(/product-([a-zA-Z0-9]+)\.html/);
+    if (productFileMatch) {
+      return productFileMatch[1];
+    }
+    
+    // For paths like: /products/123456
+    if (pathParts.includes('products') && pathParts.length > 2) {
+      return pathParts[pathParts.indexOf('products') + 1];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing URL:', error);
+    return null;
+  }
+};
+
 // This function simulates extracting product data from a Temu URL
 // In a real application, this would call an API to fetch actual product data
 export const extractProductData = (url: string): Product => {
+  // Try to extract product ID from URL
+  const productId = extractProductIdFromUrl(url) || Math.random().toString(36).substring(2, 9);
+  
   // Generate random values for demo purposes
-  const productId = Math.random().toString(36).substring(2, 9);
   const reviewCount = Math.floor(Math.random() * 500) + 50;
   const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1); // Random rating between 3.5 and 5.0
   const priceValue = (Math.random() * 30 + 9.99).toFixed(2); // Random price between $9.99 and $39.99
