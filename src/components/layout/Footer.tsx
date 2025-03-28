@@ -38,12 +38,12 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/features" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Features
                 </Link>
               </li>
               <li>
-                <Link to="/pricing" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Pricing
                 </Link>
               </li>
@@ -59,22 +59,22 @@ const Footer = () => {
             <h3 className="font-semibold text-lg mb-4">Support</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/help" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Help Center
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="text-gray-600 hover:text-brand-purple transition-colors">
+                <Link to="/" className="text-gray-600 hover:text-brand-purple transition-colors">
                   Terms of Service
                 </Link>
               </li>
