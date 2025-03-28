@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -23,7 +22,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved user in localStorage (simulating persistence)
     const savedUser = localStorage.getItem('shortify-user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -34,11 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // For demo purposes, we'll accept any credentials
-      // In a real app, this would validate against Firebase Auth
       const newUser = {
         id: Math.random().toString(36).substring(2, 9),
         email,
@@ -59,11 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // For demo purposes we'll create a mock user
-      // In a real app, this would register with Firebase Auth
       const newUser = {
         id: Math.random().toString(36).substring(2, 9),
         email,
