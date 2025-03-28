@@ -1,30 +1,35 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductInput from './ProductInput';
 import VideoCustomization from './VideoCustomization';
 import Publishing from './Publishing';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { Product } from '@/types/product';
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
+import { useProgress } from '@/hooks/use-progress';
+import { toast } from 'sonner';
+import DashboardHeader from './DashboardHeader';
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("product");
-  const [product, setProduct] = useState<Product | null>(null);
-  const [videoSettings, setVideoSettings] = useState({
-    template: 'flash-deal',
-    music: 'upbeat',
-    textOverlays: []
-  });
+  const {
+    activeTab,
+    product,
+    videoSettings,
+    lastSaved,
+    setActiveTab,
+    setProduct,
+    setVideoSettings,
+    resetProgress
+  } = useProgress();
   
-  const handleProductSubmit = (productData: Product) => {
+  const handleProductSubmit = (productData: any) => {
     setProduct(productData);
-    setActiveTab("customize");
+    toast.success('Product information saved');
   };
   
   const handleCustomizationComplete = (settings: any) => {
     setVideoSettings(settings);
-    setActiveTab("publish");
+    toast.success('Video customization saved');
   };
   
   const goBack = () => {
@@ -39,9 +44,19 @@ const Dashboard = () => {
     return 0;
   };
 
+  const handleSaveProgress = () => {
+    // Progress is already saved automatically via the hook,
+    // this is just to give the user feedback
+    toast.success('Progress saved successfully');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Create Your YouTube Short</h1>
+      <DashboardHeader 
+        lastSaved={lastSaved}
+        onSave={handleSaveProgress}
+        onReset={resetProgress}
+      />
       
       <div className="mb-8">
         <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
@@ -61,11 +76,11 @@ const Dashboard = () => {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="product">1. Product</TabsTrigger>
           <TabsTrigger value="customize" disabled={!product}>2. Customize</TabsTrigger>
-          <TabsTrigger value="publish" disabled={!product || activeTab !== "publish"}>3. Publish</TabsTrigger>
+          <TabsTrigger value="publish" disabled={!product || activeTab === "product"}>3. Publish</TabsTrigger>
         </TabsList>
         
         <TabsContent value="product" className="mt-6">
-          <ProductInput onSubmit={handleProductSubmit} />
+          <ProductInput onSubmit={handleProductSubmit} savedProduct={product} />
         </TabsContent>
         
         <TabsContent value="customize" className="mt-6">
@@ -73,7 +88,8 @@ const Dashboard = () => {
             <>
               <VideoCustomization 
                 product={product} 
-                onComplete={handleCustomizationComplete} 
+                onComplete={handleCustomizationComplete}
+                savedSettings={videoSettings}
               />
               <div className="mt-6 flex justify-between">
                 <Button 

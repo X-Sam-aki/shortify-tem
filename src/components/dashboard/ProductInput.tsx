@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,20 @@ import { extractProductData } from '@/utils/productUtils';
 
 interface ProductInputProps {
   onSubmit: (product: Product) => void;
+  savedProduct: Product | null;
 }
 
-const ProductInput: React.FC<ProductInputProps> = ({ onSubmit }) => {
+const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [urlError, setUrlError] = useState('');
+
+  // If there's a saved product, pre-populate the field
+  useEffect(() => {
+    if (savedProduct) {
+      setUrl('https://www.temu.com/product-' + savedProduct.id + '.html');
+    }
+  }, [savedProduct]);
 
   const validateTemuUrl = (url: string) => {
     // Basic validation, in a real app this would be more precise
@@ -74,10 +82,15 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit }) => {
             {urlError && <p className="text-red-500 text-sm mt-1">{urlError}</p>}
           </div>
           
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            {savedProduct && (
+              <div className="text-sm text-brand-purple">
+                <span className="font-medium">Using saved product:</span> {savedProduct.title}
+              </div>
+            )}
             <Button 
               type="submit" 
-              className="btn-primary flex items-center"
+              className="btn-primary flex items-center ml-auto"
               disabled={isLoading}
             >
               {isLoading ? (

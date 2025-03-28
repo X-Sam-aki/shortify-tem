@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,21 +10,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-interface VideoCustomizationProps {
-  product: Product;
-  onComplete: (settings: any) => void;
+interface VideoSettings {
+  template: string;
+  music: string;
+  textOverlays?: any[];
+  [key: string]: any;
 }
 
-const VideoCustomization: React.FC<VideoCustomizationProps> = ({ product, onComplete }) => {
+interface VideoCustomizationProps {
+  product: Product;
+  savedSettings?: VideoSettings;
+  onComplete: (settings: VideoSettings) => void;
+}
+
+const VideoCustomization: React.FC<VideoCustomizationProps> = ({ 
+  product, 
+  savedSettings,
+  onComplete 
+}) => {
   const [activeTab, setActiveTab] = useState("template");
-  const [selectedTemplate, setSelectedTemplate] = useState("flash-deal");
-  const [selectedMusic, setSelectedMusic] = useState("upbeat");
+  const [selectedTemplate, setSelectedTemplate] = useState(savedSettings?.template || "flash-deal");
+  const [selectedMusic, setSelectedMusic] = useState(savedSettings?.music || "upbeat");
+  const [fontStyle, setFontStyle] = useState(savedSettings?.fontStyle || "montserrat");
+  const [colorScheme, setColorScheme] = useState(savedSettings?.colorScheme || "purple");
+  const [animation, setAnimation] = useState(savedSettings?.animation || "fade");
+  
+  // Initialize from saved settings if available
+  useEffect(() => {
+    if (savedSettings) {
+      setSelectedTemplate(savedSettings.template || "flash-deal");
+      setSelectedMusic(savedSettings.music || "upbeat");
+      setFontStyle(savedSettings.fontStyle || "montserrat");
+      setColorScheme(savedSettings.colorScheme || "purple");
+      setAnimation(savedSettings.animation || "fade");
+    }
+  }, [savedSettings]);
   
   const handleComplete = () => {
     const settings = {
       template: selectedTemplate,
       music: selectedMusic,
-      // In a real app, would include text overlay settings, animations, etc.
+      fontStyle,
+      colorScheme,
+      animation
     };
     
     toast.success('Video customization complete!');
@@ -118,7 +147,7 @@ const VideoCustomization: React.FC<VideoCustomizationProps> = ({ product, onComp
                     <div className="space-y-3">
                       <div>
                         <Label>Font Style</Label>
-                        <Select defaultValue="montserrat">
+                        <Select value={fontStyle} onValueChange={setFontStyle}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select font" />
                           </SelectTrigger>
@@ -133,7 +162,7 @@ const VideoCustomization: React.FC<VideoCustomizationProps> = ({ product, onComp
                       
                       <div>
                         <Label>Color Scheme</Label>
-                        <Select defaultValue="purple">
+                        <Select value={colorScheme} onValueChange={setColorScheme}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select color scheme" />
                           </SelectTrigger>
@@ -148,7 +177,7 @@ const VideoCustomization: React.FC<VideoCustomizationProps> = ({ product, onComp
                       
                       <div>
                         <Label>Animation Style</Label>
-                        <Select defaultValue="fade">
+                        <Select value={animation} onValueChange={setAnimation}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select animation" />
                           </SelectTrigger>
@@ -251,7 +280,21 @@ const VideoCustomization: React.FC<VideoCustomizationProps> = ({ product, onComp
                 </TabsContent>
               </Tabs>
             </CardContent>
-            <CardFooter className="flex justify-end">
+            <CardFooter className="flex justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  // Reset to defaults
+                  setSelectedTemplate("flash-deal");
+                  setSelectedMusic("upbeat");
+                  setFontStyle("montserrat");
+                  setColorScheme("purple");
+                  setAnimation("fade");
+                  toast.info("Settings reset to defaults");
+                }}
+              >
+                Reset Settings
+              </Button>
               <Button
                 onClick={handleComplete}
                 className="btn-primary flex items-center"
