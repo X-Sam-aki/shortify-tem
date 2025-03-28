@@ -2,10 +2,10 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductInput from './ProductInput';
-import VideoCustomization from './VideoCustomization';
+import VideoCustomization from './video-customization';
 import Publishing from './Publishing';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useProgress } from '@/hooks/use-progress';
 import { toast } from 'sonner';
 import DashboardHeader from './DashboardHeader';
