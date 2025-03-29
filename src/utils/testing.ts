@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { Product } from '@/types/product';
 import { validateTemuUrl, extractProductData } from '@/utils/productUtils';
@@ -98,7 +97,7 @@ export const testProductExtraction = () => {
 /**
  * Test video generation functionality
  */
-export const testVideoGeneration = async (product: Product, options: VideoGenerationOptions): Promise<{success: boolean, result?: VideoGenerationResult}> => {
+export const testVideoGeneration = async (product: Product, options: VideoGenerationOptions): Promise<{success: boolean, result: VideoGenerationResult | null}> => {
   console.log('🧪 Testing video generation...');
   console.log('📦 Using product:', product);
   console.log('⚙️ Using options:', options);
@@ -138,14 +137,14 @@ export const testVideoGeneration = async (product: Product, options: VideoGenera
   } catch (error) {
     console.error('❌ Video generation test failed with error:', error);
     toast.error('Video generation test failed with an error.');
-    return { success: false };
+    return { success: false, result: null };
   }
 };
 
 /**
  * Test YouTube publishing capabilities
  */
-export const testYouTubePublishing = async (videoUrl: string, metadata: any): Promise<{success: boolean, result?: any}> => {
+export const testYouTubePublishing = async (videoUrl: string, metadata: any): Promise<{success: boolean, result: any | null}> => {
   console.log('🧪 Testing YouTube publishing capabilities...');
   console.log('📹 Using video:', videoUrl);
   console.log('📝 Using metadata:', metadata);
@@ -186,7 +185,7 @@ export const testYouTubePublishing = async (videoUrl: string, metadata: any): Pr
   } catch (error) {
     console.error('❌ YouTube publishing test failed with error:', error);
     toast.error('YouTube publishing test failed with an error.');
-    return { success: false };
+    return { success: false, result: null };
   }
 };
 
@@ -263,7 +262,7 @@ export const runAllTests = async () => {
   // Test template rendering
   const templateResults = testTemplateRendering('flash-deal');
   
-  // Initialize with a null result to match the expected type
+  // Initialize with a required result property set to null
   let videoResults = { success: false, result: null };
   
   if (productResults.success && productResults.product) {
