@@ -9,7 +9,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/custom-badge";
 import { AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 
 interface TestResultProps {
