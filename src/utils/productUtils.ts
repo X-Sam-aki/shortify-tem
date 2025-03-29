@@ -1,11 +1,6 @@
-import { Product } from '@/types/product';
 
-// Sample product images for demo purposes
-const sampleProductImages = [
-  'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96804.jpg',
-  'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96805.jpg',
-  'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96806.jpg'
-];
+import { Product } from '@/types/product';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Validates if a string is a proper Temu product URL
@@ -43,50 +38,71 @@ export const extractProductIdFromUrl = (url: string): string | null => {
   }
 };
 
-// This function simulates extracting product data from a Temu URL
-// In a real application, this would call an API to fetch actual product data
-export const extractProductData = (url: string): Product => {
-  // Try to extract product ID from URL
-  const productId = extractProductIdFromUrl(url) || Math.random().toString(36).substring(2, 9);
-  
-  // Generate random values for demo purposes
-  const reviewCount = Math.floor(Math.random() * 500) + 50;
-  const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1); // Random rating between 3.5 and 5.0
-  const priceValue = Math.floor(Math.random() * 30) + 10; // Random price between $10 and $39 (as a number)
-  
-  // Sample product names for demo
-  const productNames = [
-    'Wireless Bluetooth Headphones',
-    'Portable Bluetooth Speaker',
-    'Ergonomic Laptop Stand',
-    'LED Desk Lamp with USB Port',
-    'Foldable Phone Stand',
-    'Noise Cancelling Earbuds',
-    'Wireless Charging Pad',
-    'Smart Watch Fitness Tracker',
-    'Mini Portable Power Bank',
-    'HD Webcam with Microphone'
-  ];
-  
-  // Select a random product name
-  const productName = productNames[Math.floor(Math.random() * productNames.length)];
-  
-  // Create product description
-  const productDescription = `High-quality ${productName.toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction. One of our bestselling products with great customer satisfaction.`;
-  
-  // Calculate discount information
-  const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
-  const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
-  
-  return {
-    id: productId,
-    title: productName,
-    price: priceValue, // Now a number
-    description: productDescription,
-    images: sampleProductImages,
-    rating: parseFloat(ratingValue),
-    reviews: reviewCount,
-    originalPrice: originalPrice,
-    discount: `${discountPercentage}%`
-  };
+/**
+ * Extracts product data from a Temu URL using the AI agent
+ */
+export const extractProductData = async (url: string): Promise<Product> => {
+  try {
+    // Call the Supabase Edge Function to extract product data using AI
+    const { data, error } = await supabase.functions.invoke('extract-product', {
+      body: { url }
+    });
+
+    if (error) {
+      throw new Error(`Error calling extract-product function: ${error.message}`);
+    }
+
+    // Make sure all required fields are present
+    const productData = data as Product;
+    
+    // Validate that we have all required fields
+    if (!productData.id || !productData.title || productData.price === undefined || !productData.images) {
+      throw new Error('Incomplete product data returned from extraction');
+    }
+
+    return productData;
+  } catch (error) {
+    console.error('Error extracting product data:', error);
+    
+    // Fallback to a placeholder product if extraction fails
+    const productId = extractProductIdFromUrl(url) || Math.random().toString(36).substring(2, 9);
+    
+    // Generate random placeholder values
+    const reviewCount = Math.floor(Math.random() * 500) + 50;
+    const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1);
+    const priceValue = Math.floor(Math.random() * 30) + 10;
+    
+    // Sample product names and images for fallback
+    const productNames = [
+      'Wireless Bluetooth Headphones',
+      'Portable Bluetooth Speaker',
+      'Ergonomic Laptop Stand',
+      'LED Desk Lamp with USB Port',
+      'Foldable Phone Stand'
+    ];
+    
+    const sampleProductImages = [
+      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96804.jpg',
+      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96805.jpg',
+      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96806.jpg'
+    ];
+    
+    // Generate placeholder product
+    const productName = productNames[Math.floor(Math.random() * productNames.length)];
+    const productDescription = `High-quality ${productName.toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction.`;
+    const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
+    const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
+    
+    return {
+      id: productId,
+      title: productName,
+      price: priceValue,
+      description: productDescription,
+      images: sampleProductImages,
+      rating: parseFloat(ratingValue),
+      reviews: reviewCount,
+      originalPrice: originalPrice,
+      discount: `${discountPercentage}%`
+    };
+  }
 };

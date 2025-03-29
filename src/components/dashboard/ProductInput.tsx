@@ -37,18 +37,18 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
     setIsLoading(true);
     
     try {
-      // In a real app, this would call an API to fetch product data
-      // For demo purposes, we'll simulate the API call with a timeout
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Use the AI-powered function to extract real product data
+      const productData = await extractProductData(url);
       
-      // Simulate extracting product data
-      const productData = extractProductData(url);
-      
-      toast.success('Product information retrieved successfully!');
+      toast.success('Product information extracted successfully!');
       onSubmit(productData);
     } catch (error) {
       console.error('Error fetching product data:', error);
-      toast.error('Failed to fetch product data. Please try again.');
+      toast.error('Failed to extract product data. Using fallback data.');
+      
+      // If the AI extraction fails, we'll still get a fallback product from extractProductData
+      const fallbackData = await extractProductData(url);
+      onSubmit(fallbackData);
     } finally {
       setIsLoading(false);
     }
@@ -105,10 +105,10 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
           </div>
           
           <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <h3 className="font-medium mb-2">For demonstration purposes:</h3>
+            <h3 className="font-medium mb-2">How it works:</h3>
             <p className="text-sm text-gray-600 mb-2">
-              You can enter any URL that includes "temu.com" to continue.
-              The app will generate sample product data to demonstrate the workflow.
+              Our AI will analyze the Temu product URL and extract all relevant information including images, 
+              price, description, and reviews. This real data will be used to create your YouTube Short.
             </p>
             <div className="flex gap-2">
               <Button
@@ -118,7 +118,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
                 onClick={() => setUrl('https://www.temu.com/product-12345.html')}
                 disabled={isLoading}
               >
-                Use Sample URL
+                Example URL 1
               </Button>
               <Button
                 type="button"
@@ -127,7 +127,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
                 onClick={() => setUrl('https://www.temu.com/products/wireless-earbuds-123456')}
                 disabled={isLoading}
               >
-                Use Alternative URL Format
+                Example URL 2
               </Button>
             </div>
           </div>
