@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductInput from './ProductInput';
@@ -10,6 +9,7 @@ import { ArrowLeft, FlaskConical } from 'lucide-react';
 import { useProgress } from '@/hooks/use-progress';
 import { toast } from 'sonner';
 import DashboardHeader from './DashboardHeader';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Dashboard = () => {
   const {
@@ -48,8 +48,6 @@ const Dashboard = () => {
   };
 
   const handleSaveProgress = () => {
-    // Progress is already saved automatically via the hook,
-    // this is just to give the user feedback
     toast.success('Progress saved successfully');
   };
 

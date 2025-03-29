@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { Product } from '@/types/product';
 import { validateTemuUrl, extractProductData } from '@/utils/productUtils';
@@ -123,12 +122,12 @@ export const testVideoGeneration = async (product: Product, options: VideoGenera
   } catch (error) {
     console.error('❌ Video generation test failed with error:', error);
     toast.error('Video generation test failed with an error.');
-    return { success: false, error };
+    return { success: false };
   }
 };
 
 /**
- * Run all available tests
+ * Run all tests
  */
 export const runAllTests = async () => {
   console.log('🧪 Running all tests...');
