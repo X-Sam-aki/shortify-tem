@@ -10,8 +10,17 @@ import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-const UserSettings = () => {
-  const { user, signOut } = useAuth();
+// Define the props interface explicitly
+interface UserSettingsProps {
+  user: {
+    id: string;
+    name?: string;
+    email: string;
+  } | null;
+}
+
+const UserSettings: React.FC<UserSettingsProps> = ({ user }) => {
+  const { signOut } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
