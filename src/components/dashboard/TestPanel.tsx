@@ -1,215 +1,182 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FlaskConical, CheckCircle2, XCircle } from 'lucide-react';
-import { testUrlValidation, testProductExtraction, testVideoGeneration, runAllTests } from '@/utils/testing';
-import { Product } from '@/types/product';
-import { extractProductData } from '@/utils/productUtils';
+import { 
+  FlaskConical, 
+  ListChecks, 
+  PlayCircle, 
+  Link as LinkIcon, 
+  Package, 
+  Video
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { 
+  testUrlValidation, 
+  testProductExtraction, 
+  testVideoGeneration,
+  testTemplateRendering,
+  testYouTubePublishing,
+  runAllTests 
+} from '@/utils/testing';
+import TestResults from './TestResults';
 
-const TestPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('core');
-  const [isRunningTests, setIsRunningTests] = useState(false);
-  const [testResults, setTestResults] = useState<{
-    urlValidation?: { success: boolean; total: number; passed: number };
-    productExtraction?: { success: boolean; product?: Product };
-    videoGeneration?: { success: boolean };
-  }>({});
-
-  const handleRunCoreTests = async () => {
-    setIsRunningTests(true);
+const TestPanel = () => {
+  const [activeTest, setActiveTest] = useState("all");
+  const [isRunning, setIsRunning] = useState(false);
+  const [results, setResults] = useState<any>(null);
+  const [template, setTemplate] = useState("flash-deal");
+  
+  const handleRunTest = async () => {
+    setIsRunning(true);
+    setResults(null);
     
     try {
-      // Test URL validation
-      const urlResults = testUrlValidation();
-      setTestResults(prev => ({ ...prev, urlValidation: urlResults }));
+      let testResults;
       
-      // Test product extraction
-      const productResults = testProductExtraction();
-      setTestResults(prev => ({ ...prev, productExtraction: productResults }));
-      
-      if (productResults.success && productResults.product) {
-        // Test video generation with a sample product
-        const videoOptions = {
-          template: 'flash-deal',
-          music: 'upbeat',
-          fontStyle: 'montserrat',
-          colorScheme: 'purple',
-          animation: 'fade'
-        };
-        
-        const videoResults = await testVideoGeneration(productResults.product, videoOptions);
-        setTestResults(prev => ({ ...prev, videoGeneration: videoResults }));
+      switch (activeTest) {
+        case "url":
+          testResults = testUrlValidation();
+          setResults({ urlValidation: testResults });
+          break;
+          
+        case "product":
+          testResults = testProductExtraction();
+          setResults({ productExtraction: testResults });
+          break;
+          
+        case "template":
+          testResults = testTemplateRendering(template);
+          setResults({ templateRendering: testResults });
+          break;
+          
+        case "video":
+          const productResults = testProductExtraction();
+          if (productResults.success && productResults.product) {
+            const videoOptions = {
+              template,
+              music: 'upbeat',
+              fontStyle: 'montserrat',
+              colorScheme: 'purple',
+              animation: 'fade'
+            };
+            
+            const videoResults = await testVideoGeneration(productResults.product, videoOptions);
+            setResults({ 
+              productExtraction: productResults,
+              videoGeneration: videoResults 
+            });
+          } else {
+            toast.error('Product extraction failed. Cannot test video generation.');
+            setResults({ productExtraction: productResults });
+          }
+          break;
+          
+        case "all":
+        default:
+          const allResults = await runAllTests();
+          setResults(allResults.results);
+          break;
       }
     } catch (error) {
-      console.error('Test error:', error);
+      console.error('Test execution error:', error);
+      toast.error('An error occurred while running tests');
     } finally {
-      setIsRunningTests(false);
+      setIsRunning(false);
     }
   };
   
-  const handleRunAllTests = async () => {
-    setIsRunningTests(true);
-    try {
-      await runAllTests();
-    } catch (error) {
-      console.error('Test error:', error);
-    } finally {
-      setIsRunningTests(false);
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
+        <CardTitle className="text-xl flex items-center">
           <FlaskConical className="h-5 w-5 mr-2 text-brand-purple" />
-          <span>Test & Validation Panel</span>
+          Test Suite
         </CardTitle>
         <CardDescription>
-          Run tests to validate functionality of your Shortify app
+          Verify functionality and system performance
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="core">Core Features</TabsTrigger>
-            <TabsTrigger value="ui">UI/UX</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
+        <Tabs value={activeTest} onValueChange={setActiveTest} className="w-full">
+          <TabsList className="grid grid-cols-5 mb-4">
+            <TabsTrigger value="all" className="text-xs">
+              <ListChecks className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">All Tests</span>
+            </TabsTrigger>
+            <TabsTrigger value="url" className="text-xs">
+              <LinkIcon className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">URL</span>
+            </TabsTrigger>
+            <TabsTrigger value="product" className="text-xs">
+              <Package className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Product</span>
+            </TabsTrigger>
+            <TabsTrigger value="template" className="text-xs">
+              <PlayCircle className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Template</span>
+            </TabsTrigger>
+            <TabsTrigger value="video" className="text-xs">
+              <Video className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Video</span>
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="core" className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Temu API Tests</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="border rounded p-3 text-sm">
-                  <div className="font-medium mb-1">URL Validation</div>
-                  {testResults.urlValidation ? (
-                    <div className="flex items-center">
-                      {testResults.urlValidation.success ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500 mr-1" />
-                      )}
-                      <span>
-                        {testResults.urlValidation.passed}/{testResults.urlValidation.total} tests passed
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-gray-500">Not tested</span>
-                  )}
-                </div>
-                
-                <div className="border rounded p-3 text-sm">
-                  <div className="font-medium mb-1">Product Extraction</div>
-                  {testResults.productExtraction ? (
-                    <div className="flex items-center">
-                      {testResults.productExtraction.success ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500 mr-1" />
-                      )}
-                      <span>
-                        {testResults.productExtraction.success ? 'Data extracted' : 'Failed'}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-gray-500">Not tested</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Video Generation Tests</h3>
-              <div className="border rounded p-3 text-sm">
-                <div className="font-medium mb-1">Video Creation</div>
-                {testResults.videoGeneration ? (
-                  <div className="flex items-center">
-                    {testResults.videoGeneration.success ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500 mr-1" />
-                    )}
-                    <span>
-                      {testResults.videoGeneration.success ? 'Video generated successfully' : 'Failed to generate video'}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-gray-500">Not tested</span>
-                )}
-              </div>
-            </div>
-            
-            <Button 
-              onClick={handleRunCoreTests} 
-              disabled={isRunningTests}
-              className="w-full"
-            >
-              {isRunningTests ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Running tests...
-                </>
-              ) : (
-                <>
-                  <FlaskConical className="mr-2 h-4 w-4" />
-                  Run Core Feature Tests
-                </>
-              )}
-            </Button>
-          </TabsContent>
-          
-          <TabsContent value="ui" className="space-y-4">
-            <div className="p-8 border border-dashed rounded-md flex flex-col items-center justify-center text-center">
-              <p className="text-gray-500 mb-4">UI/UX tests require manual verification</p>
-              <ul className="text-sm text-left space-y-2 mb-4">
-                <li className="flex items-start">
-                  <span className="inline-block w-5">◻️</span>
-                  Dashboard displays created Shorts correctly
-                </li>
-                <li className="flex items-start">
-                  <span className="inline-block w-5">◻️</span>
-                  Preview functionality works before publishing
-                </li>
-                <li className="flex items-start">
-                  <span className="inline-block w-5">◻️</span>
-                  Templates load and apply correctly
-                </li>
-              </ul>
+          <TabsContent value="template">
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Select Template</label>
+              <Select value={template} onValueChange={setTemplate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="flash-deal">Flash Deal</SelectItem>
+                  <SelectItem value="product-showcase">Product Showcase</SelectItem>
+                  <SelectItem value="testimonial">Testimonial</SelectItem>
+                  <SelectItem value="before-after">Before & After</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </TabsContent>
           
-          <TabsContent value="performance" className="space-y-4">
-            <div className="p-8 border border-dashed rounded-md flex flex-col items-center justify-center text-center">
-              <p className="text-gray-500 mb-4">Performance test suite</p>
-              <Button 
-                onClick={handleRunAllTests} 
-                disabled={isRunningTests}
-                className="mb-4"
-              >
-                {isRunningTests ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <FlaskConical className="mr-2 h-4 w-4" />
-                    Run All Performance Tests
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-gray-500">
-                This will test video generation speed, API response time, and overall system performance
-              </p>
-            </div>
-          </TabsContent>
+          <div className="mt-4">
+            <TestResults results={results} isRunning={isRunning} />
+          </div>
         </Tabs>
       </CardContent>
-      <CardFooter className="text-xs text-center text-gray-500">
-        Use this panel to validate functionality before publishing to YouTube
+      <CardFooter>
+        <Button 
+          onClick={handleRunTest} 
+          disabled={isRunning}
+          className="w-full"
+        >
+          {isRunning ? (
+            <>
+              <FlaskConical className="mr-2 h-4 w-4 animate-spin" />
+              Running Tests...
+            </>
+          ) : (
+            <>
+              <FlaskConical className="mr-2 h-4 w-4" />
+              Run {activeTest === "all" ? "All Tests" : `${activeTest.charAt(0).toUpperCase()}${activeTest.slice(1)} Test`}
+            </>
+          )}
+        </Button>
       </CardFooter>
     </Card>
   );

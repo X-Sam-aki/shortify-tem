@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductInput from './ProductInput';
@@ -5,7 +6,7 @@ import VideoCustomization from './video-customization';
 import Publishing from './Publishing';
 import TestPanel from './TestPanel';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FlaskConical } from 'lucide-react';
+import { ArrowLeft, FlaskConical, BookOpen } from 'lucide-react';
 import { useProgress } from '@/hooks/use-progress';
 import { toast } from 'sonner';
 import DashboardHeader from './DashboardHeader';
@@ -133,7 +134,7 @@ const Dashboard = () => {
               <Card className="bg-brand-purple/5 border-brand-purple/30">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm flex items-center">
-                    <FlaskConical className="h-4 w-4 mr-2 text-brand-purple" />
+                    <BookOpen className="h-4 w-4 mr-2 text-brand-purple" />
                     Testing Guidelines
                   </CardTitle>
                 </CardHeader>
@@ -143,6 +144,22 @@ const Dashboard = () => {
                   <p>• Verify template compatibility</p>
                   <p>• Check video generation speed</p>
                   <p>• Ensure error messages are clear</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="mt-4 bg-brand-teal/5 border-brand-teal/30">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center">
+                    <FlaskConical className="h-4 w-4 mr-2 text-brand-teal" />
+                    Test Coverage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2 text-xs">
+                  <p>• URL Validation: Checks if URLs are valid Temu product links</p>
+                  <p>• Product Extraction: Tests data scraping capabilities</p>
+                  <p>• Template Rendering: Verifies templates with different products</p>
+                  <p>• Video Generation: Tests video creation pipeline</p>
+                  <p>• YouTube Publishing: Verifies upload capability</p>
                 </CardContent>
               </Card>
             </div>
