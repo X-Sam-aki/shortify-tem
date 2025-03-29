@@ -1,4 +1,3 @@
-
 import { Product } from '@/types/product';
 
 // Sample product images for demo purposes
@@ -12,9 +11,8 @@ const sampleProductImages = [
  * Validates if a string is a proper Temu product URL
  */
 export const validateTemuUrl = (url: string): boolean => {
-  // Basic validation for demonstration
-  // In a production app, this would be more sophisticated
-  const temuUrlPattern = /^https?:\/\/(?:www\.)?temu\.com\/([\w-]+\.html|products\/[\w-]+)/i;
+  // Enhanced validation that also accepts mobile URLs
+  const temuUrlPattern = /^https?:\/\/(?:www\.|m\.)?temu\.com(?:\/us)?\/(?:[\w-]+\.html|products\/[\w-]+)/i;
   return temuUrlPattern.test(url);
 };
 
@@ -54,7 +52,7 @@ export const extractProductData = (url: string): Product => {
   // Generate random values for demo purposes
   const reviewCount = Math.floor(Math.random() * 500) + 50;
   const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1); // Random rating between 3.5 and 5.0
-  const priceValue = (Math.random() * 30 + 9.99).toFixed(2); // Random price between $9.99 and $39.99
+  const priceValue = Math.floor(Math.random() * 30) + 10; // Random price between $10 and $39 (as a number)
   
   // Sample product names for demo
   const productNames = [
@@ -77,13 +75,13 @@ export const extractProductData = (url: string): Product => {
   const productDescription = `High-quality ${productName.toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction. One of our bestselling products with great customer satisfaction.`;
   
   // Calculate discount information
-  const originalPrice = (parseFloat(priceValue) * (1 + Math.random() * 0.5)).toFixed(2);
-  const discountPercentage = Math.floor((1 - (parseFloat(priceValue) / parseFloat(originalPrice))) * 100);
+  const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
+  const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
   
   return {
     id: productId,
     title: productName,
-    price: priceValue,
+    price: priceValue, // Now a number
     description: productDescription,
     images: sampleProductImages,
     rating: parseFloat(ratingValue),

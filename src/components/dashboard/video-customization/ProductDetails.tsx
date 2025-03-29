@@ -23,7 +23,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
         </div>
         <div className="flex items-center">
           <span className="font-semibold">Price:</span> 
-          <span className="ml-1">${product.price}</span>
+          <span className="ml-1">${product.price.toFixed(2)}</span>
           
           {hasDiscount && (
             <div className="ml-2 flex items-center">

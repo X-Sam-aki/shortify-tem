@@ -45,7 +45,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ product, selectedTemplate }
                 </div>
                 <div className="bg-brand-teal text-white p-2 text-xs font-bold rounded flex justify-between">
                   <span>NOW ONLY</span>
-                  <span>${product.price}</span>
+                  <span>${product.price.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -59,7 +59,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ product, selectedTemplate }
                 </div>
                 <div className="bg-black/70 text-white p-2 text-xs font-bold rounded flex justify-between">
                   <span>Price:</span>
-                  <span>${product.price}</span>
+                  <span>${product.price.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -73,7 +73,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ product, selectedTemplate }
                 </div>
                 <div className="bg-black/70 text-white p-2 text-xs font-bold rounded flex justify-between">
                   <span>{product.title}</span>
-                  <span>${product.price}</span>
+                  <span>${product.price.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -89,7 +89,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ product, selectedTemplate }
                   <div className="bg-green-600/80 text-white text-xs p-1 rounded">AFTER</div>
                 </div>
                 <div className="bg-black/70 text-white p-2 text-xs font-bold rounded">
-                  {product.title} - ${product.price}
+                  {product.title} - ${product.price.toFixed(2)}
                 </div>
               </div>
             </div>
