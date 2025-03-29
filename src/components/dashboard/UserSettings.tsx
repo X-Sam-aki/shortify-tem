@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,33 +8,47 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
-interface UserSettingsProps {
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-  } | null;
-}
-
-const UserSettings: React.FC<UserSettingsProps> = ({ user }) => {
-  const { signOut } = useAuth();
+const UserSettings = () => {
+  const { user, signOut } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error('You must be logged in to update your profile');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      // Simulating API call to save profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
       toast.success('Profile updated successfully');
-    } catch (error) {
-      toast.error('Failed to update profile');
+    } catch (error: any) {
+      console.error('Update profile error:', error);
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -49,6 +63,20 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user }) => {
       toast.error('Failed to clear data');
     }
   };
+
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              Please sign in to view your settings
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

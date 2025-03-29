@@ -1,50 +1,112 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from 'sonner';
 
-interface User {
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Session, User } from '@supabase/supabase-js';
+
+interface UserProfile {
   id: string;
-  email: string;
   name?: string;
+  email: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('shortify-user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    // First, set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          const userProfile: UserProfile = {
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+          };
+          
+          // Fetch additional profile data using setTimeout to avoid recursive issues
+          setTimeout(async () => {
+            try {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', currentSession.user.id)
+                .single();
+              
+              if (data && !error) {
+                userProfile.name = data.name;
+              }
+              
+              setUser(userProfile);
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+            }
+          }, 0);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        const userProfile: UserProfile = {
+          id: currentSession.user.id,
+          email: currentSession.user.email || '',
+        };
+        
+        supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', currentSession.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              userProfile.name = data.name;
+            }
+            
+            setUser(userProfile);
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       
-      const newUser = {
-        id: Math.random().toString(36).substring(2, 9),
-        email,
-      };
+      if (error) {
+        throw error;
+      }
       
-      setUser(newUser);
-      localStorage.setItem('shortify-user', JSON.stringify(newUser));
       toast.success('Successfully signed in!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign in error:', error);
-      toast.error('Failed to sign in. Please try again.');
+      toast.error(error.message || 'Failed to sign in. Please try again.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -54,30 +116,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            name,
+          },
+        }
+      });
       
-      const newUser = {
-        id: Math.random().toString(36).substring(2, 9),
-        email,
-        name,
-      };
+      if (error) {
+        throw error;
+      }
       
-      setUser(newUser);
-      localStorage.setItem('shortify-user', JSON.stringify(newUser));
-      toast.success('Account created successfully!');
-    } catch (error) {
+      toast.success('Account created successfully! Please verify your email.');
+    } catch (error: any) {
       console.error('Sign up error:', error);
-      toast.error('Failed to create account. Please try again.');
+      toast.error(error.message || 'Failed to create account. Please try again.');
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem('shortify-user');
-    toast.info('You have been signed out');
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.info('You have been signed out');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast.error('Failed to sign out. Please try again.');
+    }
   };
 
   return (

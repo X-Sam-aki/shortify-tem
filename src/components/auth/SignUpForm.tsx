@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from './AuthContext';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from 'lucide-react';
 
 const SignUpForm = () => {
   const [name, setName] = useState('');
@@ -13,6 +15,7 @@ const SignUpForm = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [formError, setFormError] = useState('');
   const { signUp, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -31,13 +34,16 @@ const SignUpForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+    
     if (!validatePasswords()) return;
     
     try {
       await signUp(email, password, name);
       navigate('/dashboard');
-    } catch (error) {
-      // Error is handled in the auth context
+    } catch (error: any) {
+      // Error is handled in the auth context, but we can set a form error here too
+      setFormError(error.message || 'An error occurred during sign up');
     }
   };
 
@@ -48,6 +54,13 @@ const SignUpForm = () => {
         <CardDescription>Sign up to start creating YouTube Shorts</CardDescription>
       </CardHeader>
       <CardContent>
+        {formError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
