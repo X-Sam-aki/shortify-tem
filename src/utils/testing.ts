@@ -1,3 +1,4 @@
+
 import { toast } from 'sonner';
 import { Product } from '@/types/product';
 import { validateTemuUrl, extractProductData } from '@/utils/productUtils';
@@ -262,7 +263,8 @@ export const runAllTests = async () => {
   // Test template rendering
   const templateResults = testTemplateRendering('flash-deal');
   
-  let videoResults = { success: false, result: undefined };
+  // Initialize with a null result to match the expected type
+  let videoResults = { success: false, result: null };
   
   if (productResults.success && productResults.product) {
     // Test video generation with default options
