@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { YouTubeService } from '@/services/youtubeService';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from 'lucide-react';
 
 export default function YouTubeCallback() {
   const [searchParams] = useSearchParams();
@@ -57,42 +59,31 @@ export default function YouTubeCallback() {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-        <div className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-center">
+            {status === 'processing' && 'Connecting to YouTube'}
+            {status === 'success' && 'Connection Successful'}
+            {status === 'error' && 'Connection Failed'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center space-y-4">
           {status === 'processing' && (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-              <h2 className="mt-4 text-xl font-semibold text-gray-900">
-                Connecting YouTube Account
-              </h2>
-              <p className="mt-2 text-gray-600">
-                Please wait while we complete the authentication process...
+              <Loader2 className="h-8 w-8 animate-spin text-brand-purple" />
+              <p className="text-sm text-gray-500 text-center">
+                Please wait while we complete the connection...
               </p>
             </>
           )}
 
           {status === 'success' && (
             <>
-              <div className="mx-auto h-12 w-12 text-green-500">
-                <svg
-                  className="h-full w-full"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+              <div className="h-8 w-8 bg-green-500 text-white rounded-full flex items-center justify-center">
+                ✓
               </div>
-              <h2 className="mt-4 text-xl font-semibold text-gray-900">
-                Successfully Connected
-              </h2>
-              <p className="mt-2 text-gray-600">
+              <p className="text-sm text-gray-500 text-center">
                 Your YouTube account has been connected successfully.
               </p>
             </>
@@ -100,35 +91,20 @@ export default function YouTubeCallback() {
 
           {status === 'error' && (
             <>
-              <div className="mx-auto h-12 w-12 text-red-500">
-                <svg
-                  className="h-full w-full"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+              <div className="h-8 w-8 bg-red-500 text-white rounded-full flex items-center justify-center">
+                ✕
               </div>
-              <h2 className="mt-4 text-xl font-semibold text-gray-900">
-                Connection Failed
-              </h2>
-              <p className="mt-2 text-gray-600">
+              <p className="text-sm text-gray-500 text-center">
                 There was an error connecting your YouTube account.
               </p>
             </>
           )}
 
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="text-xs text-gray-400 text-center">
             Redirecting you back to the dashboard...
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
-} 
+}

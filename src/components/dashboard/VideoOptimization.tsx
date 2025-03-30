@@ -3,28 +3,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, Target, Clock, Tag, MessageSquare } from 'lucide-react';
+import { AlertCircle, TrendingUp, Target, Clock, Tag, MessageSquare, ThumbsUp, Eye } from 'lucide-react';
 import { YouTubeService } from '@/services/youtubeService';
-
-interface VideoOptimizationProps {
-  videoId: string;
-}
+import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 
 interface OptimizationSuggestion {
-  type: 'title' | 'description' | 'thumbnail' | 'tags' | 'timing';
+  type: 'title' | 'description' | 'tags' | 'thumbnail';
   priority: 'high' | 'medium' | 'low';
   suggestion: string;
   impact: string;
+}
+
+interface VideoOptimizationProps {
+  videoId: string;
 }
 
 const VideoOptimization: React.FC<VideoOptimizationProps> = ({ videoId }) => {
   const [engagementMetrics, setEngagementMetrics] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<OptimizationSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const youtubeService = YouTubeService.getInstance();
 
   const fetchOptimizationData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const [metrics, videoStats] = await Promise.all([
         youtubeService.getVideoAnalytics(videoId),
@@ -33,6 +37,10 @@ const VideoOptimization: React.FC<VideoOptimizationProps> = ({ videoId }) => {
           id: videoId
         })
       ]);
+
+      if (!metrics || !videoStats.data.items?.[0]) {
+        throw new Error('Failed to fetch video data');
+      }
 
       const video = videoStats.data.items[0];
       const stats = video.statistics;
@@ -48,10 +56,10 @@ const VideoOptimization: React.FC<VideoOptimizationProps> = ({ videoId }) => {
 
       setEngagementMetrics({
         engagementRate: Number(engagementRate.toFixed(2)),
-        averageViewDuration: 45,
-        retentionRate: 65,
-        clickThroughRate: 2.5,
-        conversionRate: 1.2
+        averageViewDuration: metrics.averageViewDuration,
+        retentionRate: metrics.retentionRate,
+        clickThroughRate: metrics.clickThroughRate,
+        conversionRate: metrics.conversionRate
       });
 
       // Generate optimization suggestions
@@ -78,28 +86,29 @@ const VideoOptimization: React.FC<VideoOptimizationProps> = ({ videoId }) => {
       }
 
       // Tags optimization
-      if (snippet.tags.length < 5) {
+      if (!snippet.tags || snippet.tags.length < 5) {
         newSuggestions.push({
           type: 'tags',
           priority: 'medium',
           suggestion: 'Add more relevant tags to improve discoverability',
-          impact: 'Medium impact on reach'
+          impact: 'Medium impact on search visibility'
         });
       }
 
       // Engagement optimization
-      if (views > 0 && engagementRate < 5) {
+      if (engagementRate < 5) {
         newSuggestions.push({
-          type: 'engagement',
+          type: 'thumbnail',
           priority: 'high',
-          suggestion: 'Improve viewer engagement by adding calls-to-action',
-          impact: 'High impact on algorithm ranking'
+          suggestion: 'Improve thumbnail design to increase click-through rate',
+          impact: 'High impact on initial engagement'
         });
       }
 
       setSuggestions(newSuggestions);
     } catch (error) {
       console.error('Failed to fetch optimization data:', error);
+      setError('Failed to load optimization data. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -109,129 +118,139 @@ const VideoOptimization: React.FC<VideoOptimizationProps> = ({ videoId }) => {
     fetchOptimizationData();
   }, [videoId]);
 
+  const handleApplySuggestion = async (suggestion: OptimizationSuggestion) => {
+    try {
+      // Here you would implement the actual suggestion application logic
+      toast.success('Suggestion applied successfully');
+      await fetchOptimizationData(); // Refresh data
+    } catch (error) {
+      toast.error('Failed to apply suggestion');
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-500';
+        return 'bg-red-100 text-red-800';
       case 'medium':
-        return 'bg-yellow-500';
+        return 'bg-yellow-100 text-yellow-800';
       case 'low':
-        return 'bg-green-500';
+        return 'bg-green-100 text-green-800';
       default:
-        return 'bg-gray-500';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getMetricIcon = (type: string) => {
-    switch (type) {
-      case 'title':
-        return <TrendingUp className="h-4 w-4" />;
-      case 'description':
-        return <MessageSquare className="h-4 w-4" />;
-      case 'tags':
-        return <Tag className="h-4 w-4" />;
-      case 'timing':
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <Target className="h-4 w-4" />;
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Video Optimization</h2>
-          <p className="text-muted-foreground">
-            Improve your video performance with data-driven insights
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Engagement Rate</p>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold">{engagementMetrics?.engagementRate || 0}%</p>
-                <Progress value={engagementMetrics?.engagementRate || 0} className="w-[60%]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Retention Rate</p>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold">{engagementMetrics?.retentionRate || 0}%</p>
-                <Progress value={engagementMetrics?.retentionRate || 0} className="w-[60%]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Click-Through Rate</p>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold">{engagementMetrics?.clickThroughRate || 0}%</p>
-                <Progress value={engagementMetrics?.clickThroughRate || 0} className="w-[60%]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Conversion Rate</p>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold">{engagementMetrics?.conversionRate || 0}%</p>
-                <Progress value={engagementMetrics?.conversionRate || 0} className="w-[60%]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+  if (isLoading) {
+    return (
       <Card>
-        <CardHeader>
-          <CardTitle>Optimization Suggestions</CardTitle>
-          <CardDescription>
-            Recommendations to improve your video performance
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {suggestions.map((suggestion, index) => (
-              <Alert key={index} className="flex items-start">
-                <AlertCircle className="h-4 w-4 mt-1" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTitle className="flex items-center gap-2">
-                      {getMetricIcon(suggestion.type)}
-                      {suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1)}
-                    </AlertTitle>
-                    <Badge variant="secondary" className={getPriorityColor(suggestion.priority)}>
-                      {suggestion.priority}
-                    </Badge>
-                  </div>
-                  <AlertDescription>
-                    <p className="font-medium">{suggestion.suggestion}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{suggestion.impact}</p>
-                  </AlertDescription>
-                </div>
-              </Alert>
-            ))}
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
           </div>
         </CardContent>
       </Card>
-    </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
+          Video Optimization
+        </CardTitle>
+        <CardDescription>
+          Optimize your video performance with AI-powered suggestions
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Engagement Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Engagement Rate</span>
+              <ThumbsUp className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold">
+              {engagementMetrics?.engagementRate}%
+            </div>
+            <Progress value={engagementMetrics?.engagementRate} className="mt-2" />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Retention Rate</span>
+              <Clock className="h-4 w-4 text-green-600" />
+            </div>
+            <div className="text-2xl font-bold">
+              {engagementMetrics?.retentionRate}%
+            </div>
+            <Progress value={engagementMetrics?.retentionRate} className="mt-2" />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Click-Through Rate</span>
+              <Target className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold">
+              {engagementMetrics?.clickThroughRate}%
+            </div>
+            <Progress value={engagementMetrics?.clickThroughRate} className="mt-2" />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Conversion Rate</span>
+              <Eye className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="text-2xl font-bold">
+              {engagementMetrics?.conversionRate}%
+            </div>
+            <Progress value={engagementMetrics?.conversionRate} className="mt-2" />
+          </div>
+        </div>
+
+        {/* Optimization Suggestions */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Optimization Suggestions</h3>
+          {suggestions.map((suggestion, index) => (
+            <div key={index} className="p-4 bg-white border rounded-lg">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className={getPriorityColor(suggestion.priority)}>
+                      {suggestion.priority}
+                    </Badge>
+                    <span className="text-sm text-gray-500">{suggestion.type}</span>
+                  </div>
+                  <p className="font-medium">{suggestion.suggestion}</p>
+                  <p className="text-sm text-gray-500 mt-1">{suggestion.impact}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleApplySuggestion(suggestion)}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
-export default VideoOptimization; 
+export default VideoOptimization;

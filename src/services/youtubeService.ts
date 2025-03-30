@@ -25,14 +25,20 @@ export interface YouTubeAnalytics {
   comments: number;
   shares: number;
   averageViewDuration: number;
-  averageViewPercentage: number;
-  subscriberGained: number;
-  subscriberLost: number;
+  retentionRate: number;
+  clickThroughRate: number;
+  conversionRate: number;
   estimatedRevenue: number;
-  dateRange: {
-    start: Date;
-    end: Date;
-  };
+}
+
+export interface ChannelAnalytics {
+  totalSubscribers: number;
+  totalViews: number;
+  totalVideos: number;
+  averageViewsPerVideo: number;
+  subscriberGrowth: number;
+  engagementRate: number;
+  revenue: number;
 }
 
 interface RetryOptions {
@@ -61,8 +67,10 @@ export class YouTubeService {
       redirectUri
     });
 
-    this.youtube = google.youtube('v3');
-    this.youtube.options = { auth: this.oauth2Client };
+    this.youtube = google.youtube({
+      version: 'v3',
+      auth: this.oauth2Client
+    });
   }
 
   public static getInstance(): YouTubeService {
@@ -215,7 +223,6 @@ export class YouTubeService {
   }
 
   private getCategoryId(category: string): string {
-    // YouTube category IDs (https://developers.google.com/youtube/v3/docs/videoCategories/list)
     const categories: Record<string, string> = {
       entertainment: '24',
       gaming: '20',
@@ -261,6 +268,112 @@ export class YouTubeService {
       return response.data.items?.[0] || null;
     } catch (error) {
       logger.error('Failed to get video stats:', error);
+      return null;
+    }
+  }
+
+  public async getVideoAnalytics(
+    videoId: string,
+    dateRange?: { start: Date; end: Date }
+  ): Promise<YouTubeAnalytics | null> {
+    if (!this.isInitialized) return null;
+
+    try {
+      const [videoStats, videoAnalytics] = await Promise.all([
+        this.retryWithBackoff(() =>
+          this.youtube.videos.list({
+            part: ['statistics'],
+            id: [videoId]
+          })
+        ),
+        this.retryWithBackoff(() =>
+          this.youtube.videos.getRating({
+            id: [videoId]
+          })
+        )
+      ]);
+
+      const stats = videoStats.data.items?.[0]?.statistics;
+      if (!stats) return null;
+
+      // Calculate engagement metrics
+      const views = parseInt(stats.viewCount) || 0;
+      const likes = parseInt(stats.likeCount) || 0;
+      const comments = parseInt(stats.commentCount) || 0;
+      const shares = 0; // Mock value since YouTube API doesn't provide share count
+
+      // Calculate derived metrics
+      const engagementRate = views > 0 
+        ? ((likes + comments + shares) / views) * 100 
+        : 0;
+
+      // Mock some metrics that would require YouTube Analytics API
+      // In a real implementation, you would use the YouTube Analytics API
+      return {
+        views,
+        likes,
+        comments,
+        shares,
+        averageViewDuration: 45, // Mock value
+        retentionRate: 65, // Mock value
+        clickThroughRate: 2.5, // Mock value
+        conversionRate: 1.2, // Mock value
+        estimatedRevenue: views * 0.001 // Mock value (CPM)
+      };
+    } catch (error) {
+      logger.error('Failed to get video analytics:', error);
+      return null;
+    }
+  }
+
+  public async getChannelAnalytics(
+    dateRange?: { start: Date; end: Date }
+  ): Promise<ChannelAnalytics | null> {
+    if (!this.isInitialized) return null;
+
+    try {
+      const [channelStats, channelVideos] = await Promise.all([
+        this.retryWithBackoff(() =>
+          this.youtube.channels.list({
+            part: ['statistics'],
+            mine: true
+          })
+        ),
+        this.retryWithBackoff(() =>
+          this.youtube.search.list({
+            part: ['snippet'],
+            forMine: true,
+            type: ['video'],
+            maxResults: 50
+          })
+        )
+      ]);
+
+      const stats = channelStats.data.items?.[0]?.statistics;
+      if (!stats) return null;
+
+      const totalVideos = channelVideos.data.pageInfo?.totalResults || 0;
+      const totalViews = parseInt(stats.viewCount) || 0;
+      const totalSubscribers = parseInt(stats.subscriberCount) || 0;
+
+      // Calculate derived metrics
+      const averageViewsPerVideo = totalVideos > 0 
+        ? totalViews / totalVideos 
+        : 0;
+
+      // Mock some metrics that would require YouTube Analytics API
+      // In a real implementation, you would use the YouTube Analytics API
+      return {
+        totalSubscribers,
+        totalViews,
+        totalVideos,
+        averageViewsPerVideo,
+        subscriberGrowth: 5, // Mock value (percentage)
+        engagementRate: 3.2, // Mock value (percentage)
+        revenue: totalViews * 0.001 // Mock value (CPM)
+      };
+    } catch (error) {
+      logger.error('Failed to get channel analytics:', error);
       return null;
     }
   }
