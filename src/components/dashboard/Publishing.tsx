@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,13 +13,18 @@ import { CalendarIcon, Upload, Clock, YoutubeIcon, Sparkles, Loader2 } from 'luc
 import { Product } from '@/types/product';
 import { cn } from '@/lib/utils';
 import VideoGenerationPreview from './VideoGenerationPreview';
+import YouTubeConnect from './YouTubeConnect';
+import { YouTubeService, YouTubeVideoMetadata } from '@/services/youtubeService';
+import YouTubeAnalytics from './YouTubeAnalytics';
+import VideoOptimization from './VideoOptimization';
 
 interface PublishingProps {
   product: Product;
   videoSettings: any;
+  videoUrl: string;
 }
 
-const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
+const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUrl }) => {
   const [publishOption, setPublishOption] = useState("now");
   const [title, setTitle] = useState(`🔥 ${product.title} ONLY $${product.price}! [LINK IN BIO]`);
   const [description, setDescription] = useState(
@@ -28,6 +32,9 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
   );
   const [date, setDate] = useState<Date>();
   const [isPublishing, setIsPublishing] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState<'private' | 'unlisted' | 'public'>('private');
+  const youtubeService = YouTubeService.getInstance();
+  const [publishedVideoId, setPublishedVideoId] = useState<string | null>(null);
 
   const handleGenerateMetadata = () => {
     toast.success('Generated optimized metadata!');
@@ -46,19 +53,27 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
     setIsPublishing(true);
     
     try {
-      // Simulate video processing and uploading
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      const metadata: YouTubeVideoMetadata = {
+        title,
+        description,
+        tags: ['shorts', 'temu', 'deals', 'shopping', 'product review'],
+        category: 'Shopping',
+        privacyStatus,
+        scheduledTime: publishOption === "schedule" ? date : undefined
+      };
+
+      const result = await youtubeService.uploadVideo(videoUrl, metadata);
       
-      if (publishOption === "now") {
+      if (result.status === 'success') {
         toast.success('Your Short has been published to YouTube!');
+        setPublishedVideoId(result.videoId);
+        window.open(result.videoUrl, '_blank');
       } else {
-        toast.success(`Your Short has been scheduled for ${date ? format(date, 'PP') : 'the selected date'}`);
+        throw new Error(result.errorMessage || 'Failed to publish video');
       }
-      
-      // In a real app, this would navigate to a success page or show more details
-    } catch (error) {
+    } catch (error: any) {
       console.error('Publishing error:', error);
-      toast.error('Failed to publish your Short. Please try again.');
+      toast.error(error.message || 'Failed to publish your Short. Please try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -66,6 +81,8 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
 
   return (
     <div className="space-y-6">
+      <YouTubeConnect />
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card>
@@ -110,94 +127,119 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
                     id="description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={5}
-                    className="input-field resize-none"
+                    className="input-field min-h-[120px]"
+                    placeholder="Add a compelling description for your video..."
                   />
-                  <div className="flex items-center text-xs text-muted-foreground mt-1">
-                    <p>Includes hashtags and call-to-action</p>
-                    <div className="ml-auto flex items-center">
-                      {description.length}/5000
-                    </div>
-                  </div>
                 </div>
-                
-                <div className="border-t pt-4">
-                  <Label className="mb-2 block">When to publish?</Label>
+
+                <div>
+                  <Label>Privacy Settings</Label>
                   <RadioGroup
-                    value={publishOption}
-                    onValueChange={setPublishOption}
-                    className="space-y-3"
+                    value={privacyStatus}
+                    onValueChange={(value: 'private' | 'unlisted' | 'public') => setPrivacyStatus(value)}
+                    className="grid grid-cols-3 gap-4 mt-2"
                   >
-                    <div className="flex items-start space-x-2">
-                      <RadioGroupItem value="now" id="now" className="mt-1" />
-                      <div>
-                        <Label htmlFor="now" className="font-medium">Publish Now</Label>
-                        <p className="text-sm text-gray-500">Your video will be published immediately after processing</p>
-                      </div>
+                    <div>
+                      <RadioGroupItem value="private" id="private" className="peer sr-only" />
+                      <Label
+                        htmlFor="private"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      >
+                        Private
+                      </Label>
                     </div>
-                    
-                    <div className="flex items-start space-x-2">
-                      <RadioGroupItem value="schedule" id="schedule" className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor="schedule" className="font-medium">Schedule for Later</Label>
-                        <p className="text-sm text-gray-500 mb-2">Choose a specific date and time to publish</p>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "justify-start text-left font-normal",
-                                  !date && "text-muted-foreground"
-                                )}
-                                disabled={publishOption !== "schedule"}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, "PPP") : "Pick a date"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                initialFocus
-                                disabled={(date) => date < new Date()}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          
-                          <Button
-                            variant="outline"
-                            className="flex items-center"
-                            disabled={publishOption !== "schedule"}
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            Select Time
-                          </Button>
-                        </div>
-                      </div>
+                    <div>
+                      <RadioGroupItem value="unlisted" id="unlisted" className="peer sr-only" />
+                      <Label
+                        htmlFor="unlisted"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      >
+                        Unlisted
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem value="public" id="public" className="peer sr-only" />
+                      <Label
+                        htmlFor="public"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      >
+                        Public
+                      </Label>
                     </div>
                   </RadioGroup>
                 </div>
+
+                <div>
+                  <Label>Publishing Schedule</Label>
+                  <RadioGroup
+                    value={publishOption}
+                    onValueChange={setPublishOption}
+                    className="grid grid-cols-2 gap-4 mt-2"
+                  >
+                    <div>
+                      <RadioGroupItem value="now" id="now" className="peer sr-only" />
+                      <Label
+                        htmlFor="now"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      >
+                        <Upload className="mb-2 h-4 w-4" />
+                        Publish Now
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem value="schedule" id="schedule" className="peer sr-only" />
+                      <Label
+                        htmlFor="schedule"
+                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      >
+                        <Clock className="mb-2 h-4 w-4" />
+                        Schedule
+                      </Label>
+                    </div>
+                  </RadioGroup>
+
+                  {publishOption === "schedule" && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-2",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={setDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
+            <CardFooter>
               <Button
                 onClick={handlePublish}
-                className="btn-primary flex items-center"
-                disabled={isPublishing}
+                disabled={isPublishing || publishOption === "schedule" && !date}
+                className="w-full"
               >
                 {isPublishing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {publishOption === "now" ? "Publishing..." : "Scheduling..."}
+                    Publishing...
                   </>
                 ) : (
                   <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {publishOption === "now" ? "Publish Now" : "Schedule"}
+                    <YoutubeIcon className="mr-2 h-4 w-4" />
+                    Publish to YouTube
                   </>
                 )}
               </Button>
@@ -205,28 +247,20 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings }) => {
           </Card>
         </div>
         
-        {/* Preview Panel */}
-        <div className="md:col-span-1">
-          <VideoGenerationPreview product={product} videoSettings={videoSettings} />
-          
-          <div className="mt-4">
-            <Card className="bg-brand-purple/5 border-brand-purple/30">
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm flex items-center">
-                  <Sparkles className="h-4 w-4 mr-2 text-brand-purple" />
-                  Pro Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="py-2 space-y-2 text-xs">
-                <p>• Use emojis in your title to increase click-through rate</p>
-                <p>• Include 5-7 relevant hashtags in your description</p>
-                <p>• The best publishing times are 6-9 PM on weekdays</p>
-                <p>• Follow up with comments when your video is live</p>
-              </CardContent>
-            </Card>
-          </div>
+        <div>
+          <VideoGenerationPreview
+            product={product}
+            videoSettings={videoSettings}
+          />
         </div>
       </div>
+
+      {publishedVideoId && (
+        <div className="mt-8 space-y-8">
+          <YouTubeAnalytics videoId={publishedVideoId} />
+          <VideoOptimization videoId={publishedVideoId} />
+        </div>
+      )}
     </div>
   );
 };
