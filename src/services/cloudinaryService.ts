@@ -1,8 +1,8 @@
 import { Cloudinary } from '@cloudinary/url-gen';
 import { fill } from '@cloudinary/url-gen/actions/resize';
-import { overlay } from '@cloudinary/url-gen/actions/overlay';
-import { text } from '@cloudinary/url-gen/qualifiers/text';
-import { position } from '@cloudinary/url-gen/qualifiers/position';
+import { Overlay } from '@cloudinary/url-gen/actions/overlay';
+import { Text } from '@cloudinary/url-gen/qualifiers/text';
+import { Position } from '@cloudinary/url-gen/qualifiers/position';
 import { Product } from '@/types/product';
 import { VideoTemplate } from '@/types/templates';
 
@@ -21,9 +21,42 @@ export interface CloudinaryVideoResult {
   jobId: string;
 }
 
+interface TemplateSettings {
+  titleFontSize: number;
+  priceFontSize: number;
+  titlePosition: { gravity: string; offsetY: number };
+  pricePosition: { gravity: string; offsetY?: number };
+  watermarkPosition: { gravity: string; offsetY: number };
+}
+
 export class CloudinaryService {
   private static instance: CloudinaryService;
   private cloudinary: Cloudinary;
+
+  // Template styles configuration
+  private readonly templates: Record<VideoTemplate, TemplateSettings> = {
+    basic: {
+      titleFontSize: 60,
+      priceFontSize: 80,
+      titlePosition: { gravity: 'north', offsetY: 50 },
+      pricePosition: { gravity: 'center' },
+      watermarkPosition: { gravity: 'south', offsetY: 50 }
+    },
+    modern: {
+      titleFontSize: 70,
+      priceFontSize: 90,
+      titlePosition: { gravity: 'north', offsetY: 100 },
+      pricePosition: { gravity: 'center', offsetY: 50 },
+      watermarkPosition: { gravity: 'south', offsetY: 100 }
+    },
+    minimal: {
+      titleFontSize: 50,
+      priceFontSize: 70,
+      titlePosition: { gravity: 'north', offsetY: 30 },
+      pricePosition: { gravity: 'center', offsetY: -30 },
+      watermarkPosition: { gravity: 'south', offsetY: 30 }
+    }
+  };
 
   private constructor() {
     this.cloudinary = cld;
@@ -46,40 +79,53 @@ export class CloudinaryService {
       watermark?: boolean;
     }
   ): Promise<CloudinaryVideoResult> {
-    const jobId = `video-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const video = this.cloudinary.video(jobId);
-    
-    // Apply base video transformations
-    video.resize(fill().width(1080).height(1920));
+    try {
+      const jobId = `video-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const video = this.cloudinary.video(jobId);
+      
+      // Get template settings
+      const templateSettings = this.templates[template];
+      
+      // Apply base video transformations
+      video.resize(fill().width(1080).height(1920));
 
-    // Add product title overlay
-    if (product.title) {
-      video.overlay(
-        overlay()
-          .source(
-            text(product.title)
-              .fontFamily('Arial')
-              .fontSize(60)
-              .fontWeight('bold')
-              .textColor('white')
-          )
-          .position(position().gravity('north').offsetY(50))
-      );
+      // Add product title overlay
+      if (product.title) {
+        video.overlay(
+          Overlay()
+            .source(
+              Text(product.title)
+                .fontFamily('Arial')
+                .fontSize(templateSettings.titleFontSize)
+                .fontWeight('bold')
+                .textColor('white')
+            )
+            .position(Position().gravity(templateSettings.titlePosition.gravity).offsetY(templateSettings.titlePosition.offsetY))
+        );
+      }
+
+      return {
+        videoUrl: video.toURL(),
+        thumbnailUrl: product.images[0],
+        jobId
+      };
+    } catch (error) {
+      console.error('Error generating video:', error);
+      throw new Error('Failed to generate video');
     }
-
-    return {
-      videoUrl: video.toURL(),
-      thumbnailUrl: product.images[0],
-      jobId
-    };
   }
 
   public async checkVideoStatus(jobId: string): Promise<CloudinaryVideoResult> {
-    const video = this.cloudinary.video(jobId);
-    return {
-      videoUrl: video.toURL(),
-      thumbnailUrl: video.toURL().replace('.mp4', '.jpg'),
-      jobId
-    };
+    try {
+      const video = this.cloudinary.video(jobId);
+      return {
+        videoUrl: video.toURL(),
+        thumbnailUrl: video.toURL().replace('.mp4', '.jpg'),
+        jobId
+      };
+    } catch (error) {
+      console.error('Error checking video status:', error);
+      throw new Error('Failed to check video status');
+    }
   }
 } 
