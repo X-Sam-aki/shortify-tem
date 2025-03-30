@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/youtube': {
+        target: 'https://www.googleapis.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/youtube/, '')
+      }
+    }
   },
   plugins: [
     react(),
@@ -23,11 +30,27 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ['googleapis', 'google-auth-library'],
+    include: [
+      'googleapis',
+      'google-auth-library',
+      'sonner',
+      '@google-cloud/local-auth'
+    ],
+    exclude: ['fsevents']
   },
   build: {
     commonjsOptions: {
       include: [/googleapis/, /google-auth-library/, /node_modules/],
+      transformMixedEsModules: true
     },
+    rollupOptions: {
+      external: ['fsevents'],
+      output: {
+        manualChunks: {
+          googleapis: ['googleapis'],
+          'google-auth': ['google-auth-library']
+        }
+      }
+    }
   },
 }));

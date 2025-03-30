@@ -10,7 +10,7 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
-import YouTubeCallback from "@/pages/YouTubeCallback";
+import YouTubeCallback from "@/pages/auth/youtube/callback";
 
 const queryClient = new QueryClient();
 

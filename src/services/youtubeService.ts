@@ -1,6 +1,6 @@
 import { google, youtube_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 export interface YouTubeVideoMetadata {
   title: string;
@@ -47,10 +47,18 @@ export class YouTubeService {
   private isInitialized: boolean = false;
 
   private constructor() {
+    const clientId = import.meta.env.VITE_YOUTUBE_CLIENT_ID;
+    const clientSecret = import.meta.env.VITE_YOUTUBE_CLIENT_SECRET;
+    const redirectUri = import.meta.env.VITE_YOUTUBE_REDIRECT_URI;
+
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new Error('YouTube API credentials not configured');
+    }
+
     this.oauth2Client = new OAuth2Client({
-      clientId: process.env.VITE_YOUTUBE_CLIENT_ID,
-      clientSecret: process.env.VITE_YOUTUBE_CLIENT_SECRET,
-      redirectUri: `${window.location.origin}/auth/youtube/callback`
+      clientId,
+      clientSecret,
+      redirectUri
     });
 
     this.youtube = google.youtube('v3');
@@ -66,7 +74,6 @@ export class YouTubeService {
 
   public async initialize(): Promise<boolean> {
     try {
-      // Check if we have stored tokens
       const tokens = localStorage.getItem('youtube_tokens');
       if (tokens) {
         const parsedTokens = JSON.parse(tokens);
@@ -76,7 +83,7 @@ export class YouTubeService {
       }
       return false;
     } catch (error) {
-      console.error('Failed to initialize YouTube service:', error);
+      logger.error('Failed to initialize YouTube service:', error);
       return false;
     }
   }
@@ -86,7 +93,8 @@ export class YouTubeService {
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/youtube.upload',
-        'https://www.googleapis.com/auth/youtube.readonly'
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/youtube.force-ssl'
       ]
     });
   }
@@ -99,7 +107,7 @@ export class YouTubeService {
       this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('Failed to handle YouTube auth callback:', error);
+      logger.error('Failed to handle YouTube auth callback:', error);
       return false;
     }
   }
@@ -116,10 +124,11 @@ export class YouTubeService {
       } catch (error: any) {
         lastError = error;
         
-        // Don't retry on certain errors
         if (error.message?.includes('invalid_grant') || 
             error.message?.includes('invalid_token') ||
             error.message?.includes('unauthorized')) {
+          this.isInitialized = false;
+          localStorage.removeItem('youtube_tokens');
           throw error;
         }
 
@@ -127,7 +136,6 @@ export class YouTubeService {
           break;
         }
 
-        // Exponential backoff
         await new Promise(resolve => 
           setTimeout(resolve, options.delayMs * Math.pow(2, attempt - 1))
         );
@@ -139,7 +147,8 @@ export class YouTubeService {
 
   public async uploadVideo(
     videoUrl: string,
-    metadata: YouTubeVideoMetadata
+    metadata: YouTubeVideoMetadata,
+    onProgress?: (progress: number) => void
   ): Promise<YouTubeUploadResult> {
     if (!this.isInitialized) {
       return {
@@ -152,7 +161,6 @@ export class YouTubeService {
     }
 
     try {
-      // First, download the video file with retry
       const videoBlob = await this.retryWithBackoff(async () => {
         const response = await fetch(videoUrl);
         if (!response.ok) {
@@ -161,34 +169,30 @@ export class YouTubeService {
         return response.blob();
       });
 
-      // Upload to YouTube with retry
       const res = await this.retryWithBackoff(async () => {
-        return this.youtube.videos.insert(
-          {
-            part: 'snippet,status',
-            requestBody: {
-              snippet: {
-                title: metadata.title,
-                description: metadata.description,
-                tags: metadata.tags,
-                categoryId: this.getCategoryId(metadata.category)
-              },
-              status: {
-                privacyStatus: metadata.privacyStatus,
-                publishAt: metadata.scheduledTime?.toISOString()
-              }
+        return this.youtube.videos.insert({
+          part: ['snippet', 'status'],
+          requestBody: {
+            snippet: {
+              title: metadata.title,
+              description: metadata.description,
+              tags: metadata.tags,
+              categoryId: this.getCategoryId(metadata.category)
             },
-            media: {
-              body: videoBlob
+            status: {
+              privacyStatus: metadata.privacyStatus,
+              publishAt: metadata.scheduledTime?.toISOString()
             }
           },
-          {
-            onUploadProgress: (evt: any) => {
-              const progress = (evt.bytesRead / evt.contentLength) * 100;
-              console.log(`Upload progress: ${progress}%`);
-            }
+          media: {
+            body: videoBlob
           }
-        );
+        }, {
+          onUploadProgress: (evt: any) => {
+            const progress = (evt.bytesRead / evt.contentLength) * 100;
+            onProgress?.(progress);
+          }
+        });
       });
 
       const videoId = res.data.id;
@@ -199,115 +203,65 @@ export class YouTubeService {
         status: 'success'
       };
     } catch (error: any) {
-      console.error('Failed to upload video to YouTube:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Failed to upload video';
-      if (error.message?.includes('quotaExceeded')) {
-        errorMessage = 'YouTube API quota exceeded. Please try again later.';
-      } else if (error.message?.includes('invalid_grant')) {
-        errorMessage = 'Authentication expired. Please reconnect your YouTube account.';
-      } else if (error.message?.includes('fileSizeLimitExceeded')) {
-        errorMessage = 'Video file size exceeds YouTube limit. Please compress the video.';
-      }
-
+      logger.error('Failed to upload video:', error);
       return {
         videoId: '',
         videoUrl: '',
         thumbnailUrl: '',
         status: 'error',
-        errorMessage
+        errorMessage: error.message || 'Failed to upload video'
       };
     }
   }
 
   private getCategoryId(category: string): string {
+    // YouTube category IDs (https://developers.google.com/youtube/v3/docs/videoCategories/list)
     const categories: Record<string, string> = {
-      'Shopping': '22',
-      'Entertainment': '24',
-      'People & Blogs': '22',
-      'Howto & Style': '26',
-      'Education': '27',
-      'Science & Technology': '28'
+      entertainment: '24',
+      gaming: '20',
+      howto: '26',
+      music: '10',
+      news: '25',
+      people: '22',
+      sports: '17',
+      technology: '28'
     };
-    return categories[category] || '22'; // Default to People & Blogs
+    return categories[category.toLowerCase()] || '22'; // Default to People & Blogs
   }
 
-  public async getVideoAnalytics(
-    videoId: string,
-    dateRange?: { start: Date; end: Date }
-  ): Promise<YouTubeAnalytics> {
-    if (!this.isInitialized) {
-      throw new Error('YouTube service not initialized');
-    }
+  public async getChannelInfo(): Promise<youtube_v3.Schema$Channel | null> {
+    if (!this.isInitialized) return null;
 
-    return this.retryWithBackoff(async () => {
-      const defaultEnd = new Date();
-      const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      const startDate = dateRange?.start || defaultStart;
-      const endDate = dateRange?.end || defaultEnd;
-
-      const [videoStats, analytics] = await Promise.all([
-        this.youtube.videos.list({
-          part: 'statistics',
-          id: videoId
-        }),
-        this.youtube.videos.get({
-          part: 'snippet,statistics',
-          id: videoId
+    try {
+      const response = await this.retryWithBackoff(() =>
+        this.youtube.channels.list({
+          part: ['snippet', 'statistics'],
+          mine: true
         })
-      ]);
+      );
 
-      const stats = videoStats.data.items[0].statistics;
-      const snippet = analytics.data.items[0].snippet;
-
-      return {
-        views: parseInt(stats.viewCount) || 0,
-        likes: parseInt(stats.likeCount) || 0,
-        comments: parseInt(stats.commentCount) || 0,
-        shares: 0,
-        averageViewDuration: 0,
-        averageViewPercentage: 0,
-        subscriberGained: 0,
-        subscriberLost: 0,
-        estimatedRevenue: 0,
-        dateRange: {
-          start: startDate,
-          end: endDate
-        }
-      };
-    });
+      return response.data.items?.[0] || null;
+    } catch (error) {
+      logger.error('Failed to get channel info:', error);
+      return null;
+    }
   }
 
-  public async getChannelAnalytics(
-    dateRange?: { start: Date; end: Date }
-  ): Promise<any> {
-    if (!this.isInitialized) {
-      throw new Error('YouTube service not initialized');
+  public async getVideoStats(videoId: string): Promise<youtube_v3.Schema$Video | null> {
+    if (!this.isInitialized) return null;
+
+    try {
+      const response = await this.retryWithBackoff(() =>
+        this.youtube.videos.list({
+          part: ['statistics', 'status'],
+          id: [videoId]
+        })
+      );
+
+      return response.data.items?.[0] || null;
+    } catch (error) {
+      logger.error('Failed to get video stats:', error);
+      return null;
     }
-
-    return this.retryWithBackoff(async () => {
-      const defaultEnd = new Date();
-      const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      const startDate = dateRange?.start || defaultStart;
-      const endDate = dateRange?.end || defaultEnd;
-
-      const channel = await this.youtube.channels.list({
-        part: 'statistics',
-        mine: true
-      });
-
-      return {
-        totalSubscribers: parseInt(channel.data.items[0].statistics.subscriberCount) || 0,
-        totalViews: parseInt(channel.data.items[0].statistics.viewCount) || 0,
-        totalVideos: parseInt(channel.data.items[0].statistics.videoCount) || 0,
-        dateRange: {
-          start: startDate,
-          end: endDate
-        }
-      };
-    });
   }
 } 

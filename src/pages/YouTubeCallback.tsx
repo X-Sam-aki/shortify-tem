@@ -1,35 +1,55 @@
-import React, { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { YouTubeService } from '@/services/youtubeService';
+import { logger } from '@/utils/logger';
+import { toast } from 'sonner';
 
-const YouTubeCallback: React.FC = () => {
-  const navigate = useNavigate();
+export default function YouTubeCallback() {
   const [searchParams] = useSearchParams();
-  const youtubeService = YouTubeService.getInstance();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         const code = searchParams.get('code');
-        if (!code) {
-          throw new Error('No authorization code received');
+        const error = searchParams.get('error');
+
+        if (error) {
+          logger.error('YouTube authentication error:', error);
+          toast.error('Failed to connect YouTube account');
+          setStatus('error');
+          setTimeout(() => navigate('/dashboard'), 2000);
+          return;
         }
 
+        if (!code) {
+          logger.error('No authorization code received');
+          toast.error('No authorization code received');
+          setStatus('error');
+          setTimeout(() => navigate('/dashboard'), 2000);
+          return;
+        }
+
+        const youtubeService = YouTubeService.getInstance();
         const success = await youtubeService.handleAuthCallback(code);
+
         if (success) {
-          toast.success('Successfully connected to YouTube!');
+          logger.info('YouTube authentication successful');
+          toast.success('YouTube account connected successfully');
+          setStatus('success');
+          setTimeout(() => navigate('/dashboard'), 2000);
         } else {
-          throw new Error('Failed to complete YouTube connection');
+          logger.error('Failed to handle YouTube callback');
+          toast.error('Failed to connect YouTube account');
+          setStatus('error');
+          setTimeout(() => navigate('/dashboard'), 2000);
         }
       } catch (error) {
-        console.error('YouTube callback error:', error);
-        toast.error('Failed to connect to YouTube');
-      } finally {
-        // Redirect back to dashboard
-        navigate('/dashboard');
+        logger.error('Error handling YouTube callback:', error);
+        toast.error('An error occurred while connecting YouTube account');
+        setStatus('error');
+        setTimeout(() => navigate('/dashboard'), 2000);
       }
     };
 
@@ -37,20 +57,78 @@ const YouTubeCallback: React.FC = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center">Connecting to YouTube</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-brand-purple" />
-          <p className="text-sm text-gray-500 text-center">
-            Please wait while we complete the connection...
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+        <div className="text-center">
+          {status === 'processing' && (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+              <h2 className="mt-4 text-xl font-semibold text-gray-900">
+                Connecting YouTube Account
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Please wait while we complete the authentication process...
+              </p>
+            </>
+          )}
+
+          {status === 'success' && (
+            <>
+              <div className="mx-auto h-12 w-12 text-green-500">
+                <svg
+                  className="h-full w-full"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h2 className="mt-4 text-xl font-semibold text-gray-900">
+                Successfully Connected
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Your YouTube account has been connected successfully.
+              </p>
+            </>
+          )}
+
+          {status === 'error' && (
+            <>
+              <div className="mx-auto h-12 w-12 text-red-500">
+                <svg
+                  className="h-full w-full"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </div>
+              <h2 className="mt-4 text-xl font-semibold text-gray-900">
+                Connection Failed
+              </h2>
+              <p className="mt-2 text-gray-600">
+                There was an error connecting your YouTube account.
+              </p>
+            </>
+          )}
+
+          <p className="mt-4 text-sm text-gray-500">
+            Redirecting you back to the dashboard...
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default YouTubeCallback; 
+} 
