@@ -270,6 +270,7 @@ export class YouTubeService {
       logger.error('Failed to get video stats:', error);
       return null;
     }
+<<<<<<< HEAD
   }
 
   public async getVideoAnalytics(
@@ -376,5 +377,7 @@ export class YouTubeService {
       logger.error('Failed to get channel analytics:', error);
       return null;
     }
+=======
+>>>>>>> 87bcd2800637d5e87db0ceadc8666260fc9dced0
   }
 } 

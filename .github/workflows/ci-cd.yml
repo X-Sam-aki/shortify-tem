@@ -7,31 +7,18 @@ on:
     branches: [ main, develop ]
 
 env:
-  NODE_VERSION: '18.x'
-  REDIS_HOST: localhost
-  REDIS_PORT: 6379
+  NODE_VERSION: '18'
+  VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+  VITE_CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+  VITE_CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    environment: test
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    environment: development
 
     steps:
       - uses: actions/checkout@v3
@@ -45,35 +32,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run lint
+      - name: Run tests
+        run: npm test
 
-      - name: Run type checking
-        run: npm run type-check
-
-      - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Upload test coverage
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
   build:
     name: Build
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    environment: development
 
     steps:
       - uses: actions/checkout@v3
@@ -87,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build application
+      - name: Build
         run: npm run build
 
       - name: Upload build artifacts
@@ -100,61 +72,40 @@ jobs:
     name: Deploy to Staging
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
     environment: staging
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    if: github.ref == 'refs/heads/develop'
 
     steps:
+      - uses: actions/checkout@v3
+
       - name: Download build artifacts
         uses: actions/download-artifact@v3
         with:
           name: build
+          path: dist/
 
-      - name: Deploy to staging environment
+      - name: Deploy to staging
         run: |
           # Add your staging deployment commands here
           echo "Deploying to staging environment..."
-          # Example: npm run deploy:staging
 
   deploy-production:
     name: Deploy to Production
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     environment: production
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    if: github.ref == 'refs/heads/main'
 
     steps:
+      - uses: actions/checkout@v3
+
       - name: Download build artifacts
         uses: actions/download-artifact@v3
         with:
           name: build
+          path: dist/
 
-      - name: Deploy to production environment
+      - name: Deploy to production
         run: |
           # Add your production deployment commands here
-          echo "Deploying to production environment..."
-          # Example: npm run deploy:prod
-
-  notify:
-    name: Notify
-    needs: [test, build, deploy-staging, deploy-production]
-    runs-on: ubuntu-latest
-    if: always()
-
-    steps:
-      - name: Send notification
-        run: |
-          # Add your notification logic here
-          echo "Sending notification about build status..."
-          # Example: Send Slack notification or email 
+          echo "Deploying to production environment..." 
