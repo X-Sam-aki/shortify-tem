@@ -1,5 +1,8 @@
 import { Cloudinary } from '@cloudinary/url-gen';
-import { Fill } from '@cloudinary/url-gen/actions/resize';
+import { fill } from '@cloudinary/url-gen/actions/resize';
+import { overlay } from '@cloudinary/url-gen/actions/overlay';
+import { text } from '@cloudinary/url-gen/qualifiers/text';
+import { position } from '@cloudinary/url-gen/qualifiers/position';
 import { Product } from '@/types/product';
 import { VideoTemplate } from '@/types/templates';
 
@@ -45,7 +48,24 @@ export class CloudinaryService {
   ): Promise<CloudinaryVideoResult> {
     const jobId = `video-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const video = this.cloudinary.video(jobId);
-    video.resize(new Fill().width(1080).height(1920));
+    
+    // Apply base video transformations
+    video.resize(fill().width(1080).height(1920));
+
+    // Add product title overlay
+    if (product.title) {
+      video.overlay(
+        overlay()
+          .source(
+            text(product.title)
+              .fontFamily('Arial')
+              .fontSize(60)
+              .fontWeight('bold')
+              .textColor('white')
+          )
+          .position(position().gravity('north').offsetY(50))
+      );
+    }
 
     return {
       videoUrl: video.toURL(),
