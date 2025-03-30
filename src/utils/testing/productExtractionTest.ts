@@ -1,11 +1,10 @@
-
 import { toast } from 'sonner';
 import { extractProductData } from '@/utils/productUtils';
 
 /**
  * Test product data extraction
  */
-export const testProductExtraction = () => {
+export const testProductExtraction = async () => {
   const testUrls = [
     'https://www.temu.com/product-123456.html',
     'https://www.temu.com/products/wireless-earbuds-123456'
@@ -15,7 +14,7 @@ export const testProductExtraction = () => {
   
   try {
     // Test with the first URL
-    const product = extractProductData(testUrls[0]);
+    const product = await extractProductData(testUrls[0]);
     
     // Validate product structure
     const validations = [

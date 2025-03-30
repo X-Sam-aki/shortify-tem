@@ -1,8 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 
 interface UserProfile {
   id: string;
@@ -104,10 +103,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('Successfully signed in!');
-    } catch (error: any) {
-      console.error('Sign in error:', error);
-      toast.error(error.message || 'Failed to sign in. Please try again.');
-      throw error;
+    } catch (error) {
+      const authError = error as AuthError;
+      console.error('Sign in error:', authError);
+      toast.error(authError.message || 'Failed to sign in. Please try again.');
+      throw authError;
     } finally {
       setIsLoading(false);
     }
@@ -131,10 +131,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('Account created successfully! Please verify your email.');
-    } catch (error: any) {
-      console.error('Sign up error:', error);
-      toast.error(error.message || 'Failed to create account. Please try again.');
-      throw error;
+    } catch (error) {
+      const authError = error as AuthError;
+      console.error('Sign up error:', authError);
+      toast.error(authError.message || 'Failed to create account. Please try again.');
+      throw authError;
     } finally {
       setIsLoading(false);
     }
@@ -157,10 +158,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export { AuthContext };

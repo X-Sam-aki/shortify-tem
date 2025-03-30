@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/components/auth/AuthContext';
+import { useAuth } from '@/components/auth/useAuth';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import Dashboard from '@/components/dashboard/Dashboard';

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -50,23 +49,26 @@ const TestPanel = () => {
       let testResults;
       
       switch (activeTest) {
-        case "url":
+        case "url": {
           testResults = testUrlValidation();
           setResults({ urlValidation: testResults });
           break;
+        }
           
-        case "product":
-          testResults = testProductExtraction();
+        case "product": {
+          testResults = await testProductExtraction();
           setResults({ productExtraction: testResults });
           break;
+        }
           
-        case "template":
+        case "template": {
           testResults = testTemplateRendering(template);
           setResults({ templateRendering: testResults });
           break;
+        }
           
-        case "video":
-          const productResults = testProductExtraction();
+        case "video": {
+          const productResults = await testProductExtraction();
           if (productResults.success && productResults.product) {
             const videoOptions = {
               template,
@@ -86,12 +88,14 @@ const TestPanel = () => {
             setResults({ productExtraction: productResults });
           }
           break;
+        }
           
         case "all":
-        default:
+        default: {
           const allResults = await runAllTests();
           setResults(allResults.results);
           break;
+        }
       }
     } catch (error) {
       console.error('Test execution error:', error);
