@@ -61,8 +61,10 @@ export class YouTubeService {
       redirectUri
     });
 
-    this.youtube = google.youtube('v3');
-    this.youtube.options = { auth: this.oauth2Client };
+    this.youtube = google.youtube({
+      version: 'v3',
+      auth: this.oauth2Client
+    });
   }
 
   public static getInstance(): YouTubeService {
@@ -215,7 +217,6 @@ export class YouTubeService {
   }
 
   private getCategoryId(category: string): string {
-    // YouTube category IDs (https://developers.google.com/youtube/v3/docs/videoCategories/list)
     const categories: Record<string, string> = {
       entertainment: '24',
       gaming: '20',
