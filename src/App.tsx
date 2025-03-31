@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/auth/AuthContext";
 import { setupProcessPolyfill } from "./utils/process-polyfill";
+import EnhancedLinkExtractor from "./components/dashboard/EnhancedLinkExtractor";
 
 // Set up process polyfill early
 setupProcessPolyfill();
@@ -31,6 +31,7 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/auth/youtube/callback" element={<YouTubeCallback />} />
+          <Route path="/link-extractor" element={<EnhancedLinkExtractor />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
