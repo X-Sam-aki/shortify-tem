@@ -9,6 +9,19 @@ export interface Product {
   reviews: number;
   originalPrice?: string;
   discount?: string;
-  url: string;
+  url?: string;
   specifications?: Record<string, string>;
+  shipping?: {
+    free: boolean;
+    estimatedDelivery?: string;
+  };
+  seller?: {
+    name?: string;
+    rating?: number;
+    responseRate?: string;
+  };
+  platform?: string;
+  timestamp?: number;
+  aiEnhanced?: boolean;
+  aiSummary?: string;
 }

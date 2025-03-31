@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const validateTemuUrl = (url: string): boolean => {
   // Enhanced validation that also accepts mobile URLs
-  const temuUrlPattern = /^https?:\/\/(?:www\.|m\.)?temu\.com(?:\/us)?\/(?:[\w-]+\.html|products\/[\w-]+)/i;
+  const temuUrlPattern = /^https?:\/\/(?:www\.|m\.)?temu\.com(?:\/us)?\/(?:[\w-]+\.html|products\/[\w-]+|product\.html\?pid=[\w-]+)/i;
   return temuUrlPattern.test(url);
 };
 
@@ -31,10 +31,43 @@ export const extractProductIdFromUrl = (url: string): string | null => {
       return pathParts[pathParts.indexOf('products') + 1];
     }
     
+    // For paths with query parameters like: /product.html?pid=123456
+    const params = urlObj.searchParams;
+    const pid = params.get('pid');
+    if (pid) {
+      return pid;
+    }
+    
     return null;
   } catch (error) {
     console.error('Error parsing URL:', error);
     return null;
+  }
+};
+
+/**
+ * Enhances product description using AI
+ */
+export const enhanceProductDescription = async (product: Product): Promise<Product> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('enhance-product', {
+      body: { product }
+    });
+
+    if (error) {
+      console.error('Error calling enhance-product function:', error);
+      return product;
+    }
+
+    return {
+      ...product,
+      description: data.enhancedDescription || product.description,
+      aiSummary: data.summary,
+      aiEnhanced: true
+    };
+  } catch (error) {
+    console.error('Error enhancing product description:', error);
+    return product;
   }
 };
 
@@ -58,6 +91,26 @@ export const extractProductData = async (url: string): Promise<Product> => {
     // Validate that we have all required fields
     if (!productData.id || !productData.title || productData.price === undefined || !productData.images) {
       throw new Error('Incomplete product data returned from extraction');
+    }
+
+    // Add the URL to the product data if it's not already there
+    if (!productData.url) {
+      productData.url = url;
+    }
+
+    // Add platform info if not present
+    if (!productData.platform) {
+      productData.platform = 'Temu';
+    }
+
+    // Add timestamp if not present
+    if (!productData.timestamp) {
+      productData.timestamp = Date.now();
+    }
+
+    // Enhance the product description using AI if needed
+    if (!productData.aiEnhanced) {
+      return await enhanceProductDescription(productData);
     }
 
     return productData;
@@ -93,7 +146,7 @@ export const extractProductData = async (url: string): Promise<Product> => {
     const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
     const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
     
-    return {
+    const fallbackProduct = {
       id: productId,
       title: productName,
       price: priceValue,
@@ -102,7 +155,17 @@ export const extractProductData = async (url: string): Promise<Product> => {
       rating: parseFloat(ratingValue),
       reviews: reviewCount,
       originalPrice: originalPrice,
-      discount: `${discountPercentage}%`
+      discount: `${discountPercentage}%`,
+      url: url,
+      platform: 'Temu',
+      timestamp: Date.now()
     };
+
+    // Try to enhance the fallback product using AI
+    try {
+      return await enhanceProductDescription(fallbackProduct);
+    } catch {
+      return fallbackProduct;
+    }
   }
 };

@@ -1,22 +1,15 @@
 
 import { LoadBalancerService } from '../loadBalancerService';
-import { jest } from '@jest/globals';
 import { NodeInfo, NodeMetrics, PartialNodeMetrics } from '@/types/loadBalancer';
+import { QueueService } from '../queueService';
+import { PerformanceService } from '../performanceService';
 
-// Mock the dependencies
-jest.mock('@/utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn()
-  }
-}));
-
-// Mock service singletons
+// Mock the services used by LoadBalancerService
 jest.mock('../queueService', () => ({
   QueueService: {
-    getInstance: jest.fn().mockReturnValue({})
+    getInstance: jest.fn().mockReturnValue({
+      // Add mock implementations as needed
+    })
   }
 }));
 
@@ -24,127 +17,120 @@ jest.mock('../performanceService', () => ({
   PerformanceService: {
     getInstance: jest.fn().mockReturnValue({
       getCurrentMetrics: jest.fn().mockResolvedValue({
-        system: {
-          cpu: { usage: 20, cores: 4, load: [1, 1, 1] },
-          memory: { used: 4000, total: 8000, free: 4000, swap: { total: 2000, used: 500, free: 1500 } },
-        },
-        queue: { waiting: 5 }
-      } as PartialNodeMetrics)
+        cpuUsage: 0.5,
+        memoryUsage: 0.3,
+        activeRequests: 10
+      })
     })
   }
 }));
 
-// Mock the singleton pattern for testing
-jest.mock('../loadBalancerService', () => {
-  const originalModule = jest.requireActual('../loadBalancerService');
-  // Use the actual implementation but override getInstance
-  return {
-    ...originalModule,
-    LoadBalancerService: originalModule.LoadBalancerService
-  };
-});
-
 describe('LoadBalancerService', () => {
-  let loadBalancerService: LoadBalancerService;
-
+  let service: LoadBalancerService;
+  
   beforeEach(() => {
-    // Clear all mocks
-    jest.clearAllMocks();
-    // Create a new instance directly for testing
-    loadBalancerService = new LoadBalancerService();
+    service = LoadBalancerService.getInstance();
+    // Reset nodes map for each test
+    // @ts-ignore - accessing private property for testing
+    service.nodes = new Map();
   });
-
-  test('addNode should add a node to the cluster', async () => {
-    const nodeInfo: NodeInfo = { id: 'node-1' };
-    await loadBalancerService.addNode(nodeInfo);
-    expect(loadBalancerService.getNodes()).toContainEqual(expect.objectContaining({ info: nodeInfo }));
-  });
-
-  test('updateNodeMetrics should update node metrics', async () => {
-    const nodeId = 'node-1';
-    await loadBalancerService.addNode({ id: nodeId });
-    
-    const metrics: NodeMetrics = {
-      system: {
-        cpu: {
-          usage: 25,
-          cores: 4,
-          load: [1.5, 1.2, 1.0]
-        },
-        memory: {
-          total: 16384,
-          used: 8192,
-          free: 8192,
-          swap: {
-            total: 8192,
-            used: 1024,
-            free: 7168
-          }
-        },
-        disk: {
-          total: 1024000,
-          used: 512000,
-          free: 512000
-        },
-        network: {
-          interfaces: {
-            eth0: {
-              bytesReceived: 1024,
-              bytesSent: 2048
-            }
-          }
-        }
-      },
-      queue: {
-        waiting: 5,
-        active: 2,
-        completed: 100,
-        failed: 1
-      },
-      cache: {
-        hits: 500,
-        misses: 100,
-        errors: 0,
-        size: 1024
-      },
-      api: {
-        requests: 1000,
-        errors: 10,
-        avgResponseTime: 250
-      }
+  
+  it('should add a node correctly', async () => {
+    const nodeInfo: NodeInfo = {
+      id: 'test-node-1',
+      url: 'http://localhost:3001',
+      status: 'online',
+      capabilities: ['processing']
     };
     
-    await loadBalancerService.updateNodeMetrics(nodeId, metrics);
-    const node = loadBalancerService.getNode(nodeId);
-    expect(node?.metrics).toEqual(metrics);
+    await service.addNode(nodeInfo);
+    
+    // @ts-ignore - accessing private property for testing
+    const nodes = service.nodes;
+    expect(nodes.has('test-node-1')).toBe(true);
+    expect(nodes.get('test-node-1')?.info).toEqual(nodeInfo);
   });
-
-  test('removeNode should remove a node from the cluster', async () => {
-    const nodeInfo: NodeInfo = { id: 'node-1' };
-    await loadBalancerService.addNode(nodeInfo);
-    await loadBalancerService.removeNode(nodeInfo.id);
-    expect(loadBalancerService.getNodes()).not.toContainEqual(expect.objectContaining({ info: nodeInfo }));
+  
+  it('should update node metrics correctly', async () => {
+    // First add a node
+    const nodeInfo: NodeInfo = {
+      id: 'test-node-1',
+      url: 'http://localhost:3001',
+      status: 'online',
+      capabilities: ['processing']
+    };
+    
+    await service.addNode(nodeInfo);
+    
+    // Then update its metrics
+    const metrics: NodeMetrics = {
+      cpuUsage: 0.75,
+      memoryUsage: 0.5,
+      activeRequests: 5,
+      queueDepth: 2,
+      lastResponseTime: 150
+    };
+    
+    await service.updateNodeMetrics('test-node-1', metrics);
+    
+    // @ts-ignore - accessing private property for testing
+    const nodes = service.nodes;
+    expect(nodes.get('test-node-1')?.metrics).toEqual(metrics);
   });
-
-  test('getNode should return a node by ID', async () => {
-    const nodeInfo: NodeInfo = { id: 'node-1' };
-    await loadBalancerService.addNode(nodeInfo);
-    const retrievedNode = loadBalancerService.getNode(nodeInfo.id);
-    expect(retrievedNode).toEqual(expect.objectContaining({ info: nodeInfo }));
+  
+  it('should throw an error when updating metrics for non-existent node', async () => {
+    const metrics: NodeMetrics = {
+      cpuUsage: 0.75,
+      memoryUsage: 0.5,
+      activeRequests: 5,
+      queueDepth: 2,
+      lastResponseTime: 150
+    };
+    
+    await expect(service.updateNodeMetrics('non-existent-node', metrics))
+      .rejects.toThrow('Node non-existent-node not found');
   });
-
-  test('getNode should return undefined if node does not exist', () => {
-    const retrievedNode = loadBalancerService.getNode('non-existent-node');
-    expect(retrievedNode).toBeUndefined();
+  
+  it('should get current node metrics', async () => {
+    const metrics = await service.getCurrentNodeMetrics();
+    expect(metrics).toEqual({
+      cpuUsage: 0.5,
+      memoryUsage: 0.3,
+      activeRequests: 10
+    });
   });
-
-  test('getNodes should return all nodes', async () => {
-    const node1: NodeInfo = { id: 'node-1' };
-    const node2: NodeInfo = { id: 'node-2' };
-    await loadBalancerService.addNode(node1);
-    await loadBalancerService.addNode(node2);
-    const nodes = loadBalancerService.getNodes();
-    expect(nodes).toContainEqual(expect.objectContaining({ info: node1 }));
-    expect(nodes).toContainEqual(expect.objectContaining({ info: node2 }));
+  
+  it('should mark nodes as offline when they timeout', async () => {
+    // Add a node
+    const nodeInfo: NodeInfo = {
+      id: 'test-node-1',
+      url: 'http://localhost:3001',
+      status: 'online',
+      capabilities: ['processing']
+    };
+    
+    await service.addNode(nodeInfo);
+    
+    // @ts-ignore - accessing private property for testing
+    const node = service.nodes.get('test-node-1');
+    
+    // Set lastSeen to more than 60 seconds ago
+    if (node) {
+      node.lastSeen = new Date(Date.now() - 70000);
+    }
+    
+    // Run health check
+    // @ts-ignore - accessing private method for testing
+    await service.startHealthCheck(100); // Small interval for testing
+    
+    // Wait for health check to run
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // @ts-ignore - accessing private property for testing
+    service.stopHealthCheck();
+    
+    // @ts-ignore - accessing private property for testing
+    const updatedNode = service.nodes.get('test-node-1');
+    expect(updatedNode?.info.status).toBe('offline');
   });
 });
