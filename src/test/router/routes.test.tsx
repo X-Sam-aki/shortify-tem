@@ -1,77 +1,159 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { renderWithProviders } from '../utils/testHelpers';
 import App from '@/App';
-import { AuthProvider } from '@/components/auth/AuthContext';
 
-const renderWithRouter = (initialEntries = ['/', { state: {} }]) => {
-  return render(
-    <MemoryRouter initialEntries={[initialEntries]}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </MemoryRouter>
-  );
-};
+vi.mock('@/components/auth/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    isAuthenticated: true,
+    user: { id: '1', email: 'test@example.com' },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+  }),
+}));
 
 describe('Router Tests', () => {
   describe('Public Routes', () => {
     it('should render home page at /', () => {
-      renderWithRouter('/');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <App />
+        </MemoryRouter>
+      );
+      
       expect(screen.getByRole('heading', { name: /welcome/i })).toBeInTheDocument();
     });
 
     it('should render sign in page at /signin', () => {
-      renderWithRouter('/signin');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/signin']}>
+          <App />
+        </MemoryRouter>
+      );
+      
       expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
     });
 
     it('should render sign up page at /signup', () => {
-      renderWithRouter('/signup');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/signup']}>
+          <App />
+        </MemoryRouter>
+      );
+      
       expect(screen.getByRole('heading', { name: /sign up/i })).toBeInTheDocument();
     });
 
     it('should render 404 page for invalid routes', () => {
-      renderWithRouter('/invalid-route');
-      expect(screen.getByText(/page not found/i)).toBeInTheDocument();
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/invalid-route']}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      expect(screen.getByRole('heading', { name: /404/i })).toBeInTheDocument();
     });
   });
 
   describe('Protected Routes', () => {
     beforeEach(() => {
-      // Mock authenticated state
-      localStorage.setItem('isAuthenticated', 'true');
+      vi.mock('@/components/auth/AuthContext', () => ({
+        AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        useAuth: () => ({
+          isAuthenticated: false,
+          user: null,
+          signIn: vi.fn(),
+          signOut: vi.fn(),
+        }),
+      }));
+    });
+
+    it('should redirect to login when accessing dashboard without auth', () => {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
     });
 
     it('should render dashboard when authenticated', () => {
-      renderWithRouter('/dashboard');
+      vi.mock('@/components/auth/AuthContext', () => ({
+        AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        useAuth: () => ({
+          isAuthenticated: true,
+          user: { id: '1', email: 'test@example.com' },
+          signIn: vi.fn(),
+          signOut: vi.fn(),
+        }),
+      }));
+
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <App />
+        </MemoryRouter>
+      );
+      
       expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     });
 
     it('should render link extractor when authenticated', () => {
-      renderWithRouter('/link-extractor');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/link-extractor']}>
+          <App />
+        </MemoryRouter>
+      );
+      
       expect(screen.getByRole('heading', { name: /enhanced link extractor/i })).toBeInTheDocument();
     });
 
     it('should redirect to signin when not authenticated', () => {
       localStorage.removeItem('isAuthenticated');
-      renderWithRouter('/dashboard');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <App />
+        </MemoryRouter>
+      );
       expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
     });
   });
 
   describe('Auth Callback Routes', () => {
     it('should handle YouTube callback route', () => {
-      renderWithRouter('/auth/youtube/callback?code=test-code');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/auth/youtube/callback?code=test-code']}>
+          <App />
+        </MemoryRouter>
+      );
       expect(screen.getByText(/processing youtube authentication/i)).toBeInTheDocument();
+    });
+
+    it('should handle YouTube auth callback', async () => {
+      const mockCode = 'test-auth-code';
+      renderWithProviders(
+        <MemoryRouter initialEntries={[`/auth/youtube/callback?code=${mockCode}`]}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      await waitFor(() => {
+        expect(screen.getByText(/processing authentication/i)).toBeInTheDocument();
+      });
     });
   });
 
   describe('Route Transitions', () => {
     it('should preserve state during navigation', () => {
-      const { rerender } = renderWithRouter('/');
-      
+      const { rerender } = renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <App />
+        </MemoryRouter>
+      );
+
       // Navigate to link extractor
       rerender(
         <MemoryRouter initialEntries={['/link-extractor']}>
@@ -85,7 +167,13 @@ describe('Router Tests', () => {
     });
 
     it('should handle browser back navigation', () => {
-      const { rerender } = renderWithRouter('/link-extractor');
+      const { rerender } = renderWithProviders(
+        <MemoryRouter initialEntries={['/link-extractor']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>
+      );
       
       // Simulate back navigation
       rerender(
@@ -98,6 +186,25 @@ describe('Router Tests', () => {
 
       expect(screen.getByRole('heading', { name: /welcome/i })).toBeInTheDocument();
     });
+
+    it('should handle navigation between routes', async () => {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      // Initial route
+      expect(screen.getByRole('heading', { name: /welcome/i })).toBeInTheDocument();
+      
+      // Navigate to sign in
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      signInLink.click();
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Route Guards', () => {
@@ -106,7 +213,11 @@ describe('Router Tests', () => {
       const protectedRoutes = ['/dashboard', '/link-extractor'];
 
       protectedRoutes.forEach(route => {
-        renderWithRouter(route);
+        renderWithProviders(
+          <MemoryRouter initialEntries={route}>
+            <App />
+          </MemoryRouter>
+        );
         expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
       });
     });
@@ -116,7 +227,11 @@ describe('Router Tests', () => {
       const authRoutes = ['/signin', '/signup'];
 
       authRoutes.forEach(route => {
-        renderWithRouter(route);
+        renderWithProviders(
+          <MemoryRouter initialEntries={route}>
+            <App />
+          </MemoryRouter>
+        );
         expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
       });
     });
@@ -124,7 +239,11 @@ describe('Router Tests', () => {
 
   describe('Query Parameter Handling', () => {
     it('should handle routes with query parameters', () => {
-      renderWithRouter('/link-extractor?url=https://www.temu.com/product-123.html');
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/link-extractor?url=https://www.temu.com/product-123.html']}>
+          <App />
+        </MemoryRouter>
+      );
       expect(screen.getByRole('heading', { name: /enhanced link extractor/i })).toBeInTheDocument();
       expect(screen.getByDisplayValue('https://www.temu.com/product-123.html')).toBeInTheDocument();
     });
@@ -144,6 +263,46 @@ describe('Router Tests', () => {
       );
 
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Route Parameters', () => {
+    it('should handle dynamic route parameters', () => {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/link-extractor?url=https://example.com']}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      expect(screen.getByRole('textbox')).toHaveValue('https://example.com');
+    });
+  });
+
+  describe('Query Parameters', () => {
+    it('should preserve query parameters during navigation', () => {
+      const testUrl = 'https://example.com/product';
+      renderWithProviders(
+        <MemoryRouter initialEntries={[`/link-extractor?url=${encodeURIComponent(testUrl)}`]}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      expect(screen.getByRole('textbox')).toHaveValue(testUrl);
+    });
+
+    it('should handle multiple query parameters', () => {
+      const testUrl = 'https://example.com/product';
+      const testTemplate = 'flash-deal';
+      renderWithProviders(
+        <MemoryRouter initialEntries={[
+          `/link-extractor?url=${encodeURIComponent(testUrl)}&template=${testTemplate}`
+        ]}>
+          <App />
+        </MemoryRouter>
+      );
+      
+      expect(screen.getByRole('textbox')).toHaveValue(testUrl);
+      expect(screen.getByRole('combobox')).toHaveValue(testTemplate);
     });
   });
 }); 

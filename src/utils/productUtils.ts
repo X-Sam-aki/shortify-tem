@@ -1,4 +1,3 @@
-
 import { Product } from '@/types/product';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -76,13 +75,22 @@ export const enhanceProductDescription = async (product: Product): Promise<Produ
  */
 export const extractProductData = async (url: string): Promise<Product> => {
   try {
+    // Validate URL
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL format');
+    }
+
     // Call the Supabase Edge Function to extract product data using AI
     const { data, error } = await supabase.functions.invoke('extract-product', {
       body: { url }
     });
 
     if (error) {
-      throw new Error(`Error calling extract-product function: ${error.message}`);
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error('Invalid response format');
     }
 
     // Make sure all required fields are present
@@ -115,57 +123,12 @@ export const extractProductData = async (url: string): Promise<Product> => {
 
     return productData;
   } catch (error) {
-    console.error('Error extracting product data:', error);
-    
-    // Fallback to a placeholder product if extraction fails
-    const productId = extractProductIdFromUrl(url) || Math.random().toString(36).substring(2, 9);
-    
-    // Generate random placeholder values
-    const reviewCount = Math.floor(Math.random() * 500) + 50;
-    const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1);
-    const priceValue = Math.floor(Math.random() * 30) + 10;
-    
-    // Sample product names and images for fallback
-    const productNames = [
-      'Wireless Bluetooth Headphones',
-      'Portable Bluetooth Speaker',
-      'Ergonomic Laptop Stand',
-      'LED Desk Lamp with USB Port',
-      'Foldable Phone Stand'
-    ];
-    
-    const sampleProductImages = [
-      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96804.jpg',
-      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96805.jpg',
-      'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96806.jpg'
-    ];
-    
-    // Generate placeholder product
-    const productName = productNames[Math.floor(Math.random() * productNames.length)];
-    const productDescription = `High-quality ${productName.toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction.`;
-    const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
-    const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
-    
-    const fallbackProduct = {
-      id: productId,
-      title: productName,
-      price: priceValue,
-      description: productDescription,
-      images: sampleProductImages,
-      rating: parseFloat(ratingValue),
-      reviews: reviewCount,
-      originalPrice: originalPrice,
-      discount: `${discountPercentage}%`,
-      url: url,
-      platform: 'Temu',
-      timestamp: Date.now()
-    };
-
-    // Try to enhance the fallback product using AI
-    try {
-      return await enhanceProductDescription(fallbackProduct);
-    } catch {
-      return fallbackProduct;
+    // Re-throw specific error messages
+    if (error instanceof Error) {
+      throw error;
     }
+    
+    // For unknown errors, throw a generic error
+    throw new Error('Failed to extract product data');
   }
 };
