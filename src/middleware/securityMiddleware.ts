@@ -1,73 +1,45 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { SecurityService } from '@/services/securityService';
 import { logger } from '@/utils/logger';
 
-// Define the explicit severity type
-type SecuritySeverity = "high" | "low" | "medium" | "critical";
-
 export class SecurityMiddleware {
-  private static securityService = SecurityService.getInstance();
-
-  // Apply security headers to all responses
-  public static applySecurityHeaders(req: Request, res: Response, next: NextFunction): void {
-    const headers = this.securityService.getSecurityHeaders();
-    Object.entries(headers).forEach(([key, value]) => {
-      res.setHeader(key, value);
-    });
-    next();
+  private securityService: SecurityService;
+  
+  private constructor() {
+    this.securityService = SecurityService.getInstance();
   }
 
-  // Validate API key
-  public static validateApiKey(req: Request, res: Response, next: NextFunction): void {
+  public static getInstance(): SecurityMiddleware {
+    return new SecurityMiddleware();
+  }
+
+  public verifyAPIKey(req: Request, res: Response, next: NextFunction): void {
     const apiKey = req.headers['x-api-key'] as string;
-    
-    if (!apiKey) {
-      res.status(401).json({ error: 'API key is required' });
+
+    if (!apiKey || !this.securityService.isValidAPIKey(apiKey)) {
+      logger.warn(`Invalid API key attempted: ${apiKey}`);
+      res.status(401).send('Unauthorized: Invalid API key');
       return;
     }
 
-    this.securityService.validateApiKey(apiKey)
-      .then(validKey => {
-        if (!validKey) {
-          res.status(401).json({ error: 'Invalid or expired API key' });
-          return;
-        }
-        req.user = { id: validKey.userId, permissions: validKey.permissions };
-        next();
-      })
-      .catch(error => {
-        logger.error('API key validation error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      });
+    next();
   }
 
-  // Rate limiting middleware
-  public static rateLimit(userType: 'default' | 'premium' | 'admin' = 'default') {
-    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-      const forwardedHeader = req.headers['x-forwarded-for'];
-      const forwardedFor = Array.isArray(forwardedHeader) 
-        ? forwardedHeader[0] 
-        : typeof forwardedHeader === 'string' ? forwardedHeader : undefined;
-      
-      const identifier = req.ip || forwardedFor || 'unknown';
-      
-      try {
-        const allowed = await this.securityService.checkRateLimit(identifier, userType);
-        if (!allowed) {
-          res.status(429).json({ error: 'Rate limit exceeded' });
-          return;
+  public sanitizeInput(req: Request, res: Response, next: NextFunction): void {
+    try {
+      for (const key in req.body) {
+        if (typeof req.body[key] === 'string') {
+          req.body[key] = this.securityService.sanitizeString(req.body[key]);
         }
-        next();
-      } catch (error) {
-        logger.error('Rate limiting error:', error);
-        next();
       }
-    };
+      next();
+    } catch (error) {
+      logger.error('Error sanitizing input:', error);
+      res.status(500).send('Internal Server Error: Failed to sanitize input');
+    }
   }
-
-  // CORS middleware
-  public static cors(req: Request, res: Response, next: NextFunction): void {
+  
+  public handleCORS(req: Request, res: Response, next: NextFunction): void {
     const origin = req.headers.origin;
     
     if (origin && this.securityService.isOriginAllowed(origin as string)) {
@@ -84,110 +56,17 @@ export class SecurityMiddleware {
         ? requestHeaders.join(', ')
         : requestHeaders || 'Content-Type, Authorization, X-API-Key';
       
-      res.setHeader('Access-Control-Allow-Methods', methods as string);
-      res.setHeader('Access-Control-Allow-Headers', headers as string);
+      // Ensure we're sending strings, not arrays
+      res.setHeader('Access-Control-Allow-Methods', methods.toString());
+      res.setHeader('Access-Control-Allow-Headers', headers.toString());
       res.setHeader('Access-Control-Max-Age', '86400');
     }
 
     if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-    } else {
-      next();
+      res.status(204).send();
+      return;
     }
-  }
-
-  // Input validation middleware
-  public static validateInput(schema: any) {
-    return (req: Request, res: Response, next: NextFunction): void => {
-      const input = { ...req.body, ...req.query, ...req.params };
-      
-      if (!this.securityService.validateInput(input, schema)) {
-        res.status(400).json({ error: 'Invalid input' });
-        return;
-      }
-
-      // Sanitize input
-      req.body = this.securityService.sanitizeInput(req.body);
-      req.query = this.securityService.sanitizeInput(req.query);
-      req.params = this.securityService.sanitizeInput(req.params);
-
-      next();
-    };
-  }
-
-  // Permission check middleware
-  public static checkPermission(requiredPermission: string) {
-    return (req: Request, res: Response, next: NextFunction): void => {
-      if (!req.user || !req.user.permissions) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
-
-      const hasPermission = req.user.permissions.includes(requiredPermission);
-      if (!hasPermission) {
-        res.status(403).json({ error: 'Insufficient permissions' });
-        return;
-      }
-
-      next();
-    };
-  }
-
-  // Security event logging middleware
-  public static logSecurityEvent(req: Request, res: Response, next: NextFunction): void {
-    const startTime = Date.now();
-
-    res.on('finish', () => {
-      const duration = Date.now() - startTime;
-      const resStatusCode = res.statusCode;
-      
-      // Determine severity based on status code
-      let severity: SecuritySeverity = "low";
-      if (resStatusCode >= 500) severity = "high";
-      else if (resStatusCode >= 400) severity = "medium"; 
-
-      const event = {
-        type: 'api_request',
-        severity,
-        details: {
-          method: req.method,
-          path: req.path,
-          statusCode: resStatusCode,
-          duration,
-          ip: req.ip,
-          userAgent: req.headers['user-agent']
-        },
-        userId: req.user?.id
-      };
-
-      this.securityService.logSecurityEvent(event).catch(error => {
-        logger.error('Security event logging error:', error);
-      });
-    });
 
     next();
-  }
-
-  // Error handling middleware
-  public static errorHandler(error: Error, req: Request, res: Response, next: NextFunction): void {
-    logger.error('Unhandled error:', error);
-
-    const event = {
-      type: 'error',
-      severity: "high" as SecuritySeverity,
-      details: {
-        error: error.message,
-        stack: error.stack,
-        path: req.path,
-        method: req.method
-      },
-      userId: req.user?.id
-    };
-
-    this.securityService.logSecurityEvent(event).catch(logError => {
-      logger.error('Error logging error event:', logError);
-    });
-
-    res.status(500).json({ error: 'Internal server error' });
   }
 }
