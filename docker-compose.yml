@@ -1,60 +1,107 @@
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      target: builder
-    volumes:
-      - .:/app
-      - /app/node_modules
+  postgres:
+    image: postgres:15
     ports:
-      - "3000:3000"
+      - "54322:5432"
     environment:
-      - NODE_ENV=development
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - redis
-    command: npm run dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:alpine
+  studio:
+    image: supabase/studio:20240315-1b1c9c5
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-
-  test:
-    build:
-      context: .
-      target: builder
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "54323:3000"
     environment:
-      - NODE_ENV=test
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: postgres
+      DEFAULT_ORGANIZATION: Default Organization
+      DEFAULT_PROJECT: Default Project
     depends_on:
-      - redis
-    command: npm test
+      - postgres
 
-  integration-test:
-    build:
-      context: .
-      target: builder
-    volumes:
-      - .:/app
-      - /app/node_modules
+  kong:
+    image: kong:2.8.1
+    ports:
+      - "54321:8000"
     environment:
-      - NODE_ENV=test
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth
+    volumes:
+      - ./kong.yml:/var/lib/kong/kong.yml
+
+  auth:
+    image: supabase/gotrue:v2.132.3
+    ports:
+      - "54324:9999"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:54321
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_HOST: postgres
+      GOTRUE_DB_PORT: 5432
+      GOTRUE_DB_NAME: postgres
+      GOTRUE_DB_USER: postgres
+      GOTRUE_DB_PASSWORD: postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: "http://localhost:3000,https://localhost:3000"
+      GOTRUE_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
     depends_on:
-      - redis
-    command: npm run test:integration
+      - postgres
+
+  rest:
+    image: postgrest:11.2.0
+    ports:
+      - "54325:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/postgres
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_JWT_AUD: authenticated
+    depends_on:
+      - postgres
+
+  realtime:
+    image: supabase/realtime:v1.3.0
+    ports:
+      - "54326:4000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      PORT: 4000
+      JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+    depends_on:
+      - postgres
+
+  storage:
+    image: supabase/storage-api:v0.40.4
+    ports:
+      - "54327:5000"
+    environment:
+      ANON_KEY: your-anon-key
+      SERVICE_ROLE_KEY: your-service-role-key
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+    depends_on:
+      - postgres
+      - rest
 
 volumes:
-  redis_data: 
+  postgres_data: 
