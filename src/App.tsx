@@ -6,6 +6,7 @@ import { setupProcessPolyfill } from "./utils/process-polyfill";
 import EnhancedLinkExtractor from "./components/dashboard/EnhancedLinkExtractor";
 import { LinkExtractor } from '@/components/linkExtractor/LinkExtractor';
 import { SupabaseTest } from './components/SupabaseTest';
+import { DatabaseTest } from './components/DatabaseTest';
 
 // Set up process polyfill early
 setupProcessPolyfill();
@@ -22,6 +23,7 @@ const App = () => (
     <Toaster />
     <Sonner />
     <SupabaseTest />
+    <DatabaseTest />
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/signin" element={<SignIn />} />
