@@ -124,6 +124,7 @@ export class CacheService {
     try {
       const keys = await this.client.keys(fullPattern);
       if (keys.length > 0) {
+        // Handle keys correctly: use spread for multiple keys but as separate arguments
         await this.client.del(...keys);
       }
     } catch (error) {
@@ -221,4 +222,4 @@ export class CacheService {
       logger.error('Failed to close Redis connection:', error);
     }
   }
-} 
+}

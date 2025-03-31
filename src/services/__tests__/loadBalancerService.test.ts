@@ -7,10 +7,21 @@ import { jest } from '@jest/globals';
 jest.mock('../queueService');
 jest.mock('../performanceService');
 
+// Define typed mocks to match with service interfaces
+type MockedQueueService = {
+  getInstance: jest.Mock;
+  addJob: jest.Mock;
+};
+
+type MockedPerformanceService = {
+  getInstance: jest.Mock;
+  getCurrentMetrics: jest.Mock;
+};
+
 describe('LoadBalancerService', () => {
   let loadBalancerService: LoadBalancerService;
-  let mockQueueService: jest.Mocked<QueueService>;
-  let mockPerformanceService: jest.Mocked<PerformanceService>;
+  let mockQueueService: MockedQueueService;
+  let mockPerformanceService: MockedPerformanceService;
 
   beforeEach(() => {
     // Clear all mocks
@@ -20,7 +31,7 @@ describe('LoadBalancerService', () => {
     mockQueueService = {
       getInstance: jest.fn().mockReturnThis(),
       addJob: jest.fn().mockResolvedValue({ id: 'test-job-id' })
-    } as any;
+    } as unknown as MockedQueueService;
 
     // Mock PerformanceService
     mockPerformanceService = {
@@ -36,7 +47,7 @@ describe('LoadBalancerService', () => {
         cache: { hits: 100, misses: 20, errors: 0, size: 1024 },
         api: { requests: 1000, errors: 10, avgResponseTime: 100 }
       })
-    } as any;
+    } as unknown as MockedPerformanceService;
 
     // Get instance
     loadBalancerService = LoadBalancerService.getInstance();
@@ -177,4 +188,4 @@ describe('LoadBalancerService', () => {
       expect(stats).toHaveLength(0);
     });
   });
-}); 
+});

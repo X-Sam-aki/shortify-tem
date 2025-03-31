@@ -108,6 +108,16 @@ export class PerformanceService {
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
 
+    const networkInterfaces: Record<string, { bytesReceived: number, bytesSent: number }> = {};
+    
+    const osNetworkInterfaces = os.networkInterfaces();
+    Object.keys(osNetworkInterfaces || {}).forEach(name => {
+      networkInterfaces[name] = {
+        bytesReceived: 0,
+        bytesSent: 0
+      };
+    });
+
     return {
       cpu: {
         usage: cpus.reduce((acc, cpu) => {
@@ -129,18 +139,17 @@ export class PerformanceService {
         }
       },
       disk: {
-        total: 0, // Implement disk metrics
+        total: 0,
         used: 0,
         free: 0
       },
       network: {
-        interfaces: os.networkInterfaces()
+        interfaces: networkInterfaces
       }
     };
   }
 
   private async startMonitoring(): Promise<void> {
-    // Collect metrics every minute
     setInterval(async () => {
       try {
         await this.collectMetrics();
@@ -152,10 +161,8 @@ export class PerformanceService {
 
   private async collectMetrics(): Promise<void> {
     try {
-      // Update system metrics
       this.metrics.system = this.getSystemMetrics();
 
-      // Update queue metrics
       const queueStats = await this.queueService.getStats();
       this.metrics.queue = {
         waiting: queueStats.waiting,
@@ -164,7 +171,6 @@ export class PerformanceService {
         failed: queueStats.failed
       };
 
-      // Update cache metrics
       const cacheStats = this.cacheService.getStats();
       this.metrics.cache = {
         hits: cacheStats.hits,
@@ -173,15 +179,12 @@ export class PerformanceService {
         size: cacheStats.size
       };
 
-      // Update timestamp
       this.metrics.timestamp = Date.now();
 
-      // Save current metrics
       await this.cacheService.set(this.METRICS_KEY, this.metrics, {
         ttl: this.METRICS_TTL
       });
 
-      // Add to history
       await this.addToHistory(this.metrics);
     } catch (error) {
       logger.error('Failed to collect metrics:', error);
@@ -194,7 +197,6 @@ export class PerformanceService {
       const history = await this.cacheService.get<PerformanceMetrics[]>(this.METRICS_HISTORY_KEY) || [];
       history.push(metrics);
 
-      // Keep only the last MAX_HISTORY entries
       if (history.length > this.MAX_HISTORY) {
         history.shift();
       }
@@ -208,7 +210,6 @@ export class PerformanceService {
     }
   }
 
-  // Get current metrics
   public async getCurrentMetrics(): Promise<PerformanceMetrics> {
     try {
       const metrics = await this.cacheService.get<PerformanceMetrics>(this.METRICS_KEY);
@@ -219,7 +220,6 @@ export class PerformanceService {
     }
   }
 
-  // Get metrics history
   public async getMetricsHistory(limit: number = 100): Promise<PerformanceMetrics[]> {
     try {
       const history = await this.cacheService.get<PerformanceMetrics[]>(this.METRICS_HISTORY_KEY) || [];
@@ -230,7 +230,6 @@ export class PerformanceService {
     }
   }
 
-  // Record API request
   public async recordApiRequest(responseTime: number, error: boolean = false): Promise<void> {
     try {
       this.metrics.api.requests++;
@@ -250,7 +249,6 @@ export class PerformanceService {
     }
   }
 
-  // Get system health status
   public async getHealthStatus(): Promise<{
     status: 'healthy' | 'warning' | 'critical';
     issues: string[];
@@ -258,28 +256,23 @@ export class PerformanceService {
     const issues: string[] = [];
     const metrics = await this.getCurrentMetrics();
 
-    // Check CPU usage
     if (metrics.system.cpu.usage > 90) {
       issues.push('High CPU usage detected');
     }
 
-    // Check memory usage
     const memoryUsage = (metrics.system.memory.used / metrics.system.memory.total) * 100;
     if (memoryUsage > 90) {
       issues.push('High memory usage detected');
     }
 
-    // Check queue health
     if (metrics.queue.failed > 0) {
       issues.push('Failed jobs detected in queue');
     }
 
-    // Check cache health
     if (metrics.cache.errors > 0) {
       issues.push('Cache errors detected');
     }
 
-    // Check API health
     const errorRate = (metrics.api.errors / metrics.api.requests) * 100;
     if (errorRate > 5) {
       issues.push('High API error rate detected');
@@ -291,7 +284,6 @@ export class PerformanceService {
     };
   }
 
-  // Get performance report
   public async getPerformanceReport(): Promise<{
     metrics: PerformanceMetrics;
     health: {
@@ -304,7 +296,6 @@ export class PerformanceService {
     const health = await this.getHealthStatus();
     const recommendations: string[] = [];
 
-    // Generate recommendations based on metrics
     if (metrics.system.cpu.usage > 80) {
       recommendations.push('Consider scaling horizontally to reduce CPU load');
     }
@@ -323,4 +314,4 @@ export class PerformanceService {
       recommendations
     };
   }
-} 
+}

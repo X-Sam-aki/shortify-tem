@@ -1,3 +1,4 @@
+
 import { SecurityMiddleware } from '../securityMiddleware';
 import { SecurityService } from '@/services/securityService';
 import { Request, Response, NextFunction } from 'express';
@@ -26,12 +27,13 @@ describe('SecurityMiddleware', () => {
       user: undefined
     };
 
-    // Mock response
+    // Mock response with properly typed methods
     mockRes = {
       setHeader: jest.fn(),
-      status: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis() as unknown as (code: number) => Response,
       json: jest.fn(),
-      sendStatus: jest.fn()
+      sendStatus: jest.fn(),
+      on: jest.fn()
     };
 
     // Mock next function

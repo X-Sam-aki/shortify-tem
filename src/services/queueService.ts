@@ -29,9 +29,15 @@ interface JobProgress {
   result?: any;
 }
 
+interface Job {
+  id: string;
+  data: any;
+  retry(): Promise<void>;
+}
+
 export class QueueService {
   private static instance: QueueService;
-  private videoQueue: Bull.Queue;
+  private videoQueue: any;
   private cacheService: CacheService;
   private readonly DEFAULT_ATTEMPTS = 3;
   private readonly DEFAULT_BACKOFF = {
@@ -95,8 +101,7 @@ export class QueueService {
     });
   }
 
-  // Add job to queue
-  public async addJob(data: any, options: QueueOptions = {}): Promise<Bull.Job> {
+  public async addJob(data: any, options: QueueOptions = {}): Promise<Job> {
     try {
       const job = await this.videoQueue.add(data, {
         attempts: options.attempts || this.DEFAULT_ATTEMPTS,
@@ -105,7 +110,6 @@ export class QueueService {
         removeOnFail: options.removeOnFail ?? false
       });
 
-      // Initialize job progress
       await this.updateJobProgress(job.id, 0, 'waiting');
 
       return job;
@@ -115,7 +119,6 @@ export class QueueService {
     }
   }
 
-  // Update job progress
   private async updateJobProgress(
     jobId: string,
     progress: number,
@@ -132,17 +135,15 @@ export class QueueService {
     };
 
     await this.cacheService.set(`job:${jobId}:progress`, progressData, {
-      ttl: 24 * 60 * 60 // 24 hours
+      ttl: 24 * 60 * 60
     });
   }
 
-  // Get job progress
   public async getJobProgress(jobId: string): Promise<JobProgress | null> {
     return this.cacheService.get<JobProgress>(`job:${jobId}:progress`);
   }
 
-  // Get job by ID
-  public async getJob(jobId: string): Promise<Bull.Job | null> {
+  public async getJob(jobId: string): Promise<Job | null> {
     try {
       return await this.videoQueue.getJob(jobId);
     } catch (error) {
@@ -151,7 +152,6 @@ export class QueueService {
     }
   }
 
-  // Get queue statistics
   public async getStats(): Promise<JobStats> {
     try {
       const [waiting, active, completed, failed, delayed] = await Promise.all([
@@ -183,7 +183,6 @@ export class QueueService {
     }
   }
 
-  // Pause queue
   public async pause(): Promise<void> {
     try {
       await this.videoQueue.pause();
@@ -194,7 +193,6 @@ export class QueueService {
     }
   }
 
-  // Resume queue
   public async resume(): Promise<void> {
     try {
       await this.videoQueue.resume();
@@ -205,7 +203,6 @@ export class QueueService {
     }
   }
 
-  // Clean old jobs
   public async cleanOldJobs(grace: number = 3600000): Promise<void> {
     try {
       await this.videoQueue.clean(grace, 'completed');
@@ -217,7 +214,6 @@ export class QueueService {
     }
   }
 
-  // Retry failed jobs
   public async retryFailedJobs(): Promise<void> {
     try {
       const failedJobs = await this.videoQueue.getFailed();
@@ -231,7 +227,6 @@ export class QueueService {
     }
   }
 
-  // Close queue
   public async close(): Promise<void> {
     try {
       await this.videoQueue.close();
@@ -241,4 +236,4 @@ export class QueueService {
       throw error;
     }
   }
-} 
+}

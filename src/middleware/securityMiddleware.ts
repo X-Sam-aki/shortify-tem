@@ -45,11 +45,12 @@ export class SecurityMiddleware {
   // Rate limiting middleware
   public static rateLimit(userType: 'default' | 'premium' | 'admin' = 'default') {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-      const identifier = req.ip || 
-        (Array.isArray(req.headers['x-forwarded-for']) 
-          ? req.headers['x-forwarded-for'][0] 
-          : req.headers['x-forwarded-for'] as string) || 
-        'unknown';
+      const forwardedHeader = req.headers['x-forwarded-for'];
+      const forwardedFor = Array.isArray(forwardedHeader) 
+        ? forwardedHeader[0] 
+        : typeof forwardedHeader === 'string' ? forwardedHeader : undefined;
+      
+      const identifier = req.ip || forwardedFor || 'unknown';
       
       try {
         const allowed = await this.securityService.checkRateLimit(identifier, userType);
