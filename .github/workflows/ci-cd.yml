@@ -10,15 +10,15 @@ env:
   NODE_VERSION: '18'
   VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-  VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-  VITE_CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+  VITE_CLOUDINARY_CLOUD_NAME: ${{ ddb0kr7fz }}
+  VITE_CLOUDINARY_API_KEY: ${{ 968961566934314 }}
   VITE_CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    environment: dev
+    environment: test
 
     steps:
       - uses: actions/checkout@v3
@@ -45,7 +45,7 @@ jobs:
     name: Build
     needs: test
     runs-on: ubuntu-latest
-    environment: dev
+    environment: test
 
     steps:
       - uses: actions/checkout@v3
@@ -72,7 +72,7 @@ jobs:
     name: Deploy to Staging
     needs: build
     runs-on: ubuntu-latest
-    environment: stage
+    environment: preview
     if: github.ref == 'refs/heads/develop'
 
     steps:
@@ -93,7 +93,7 @@ jobs:
     name: Deploy to Production
     needs: build
     runs-on: ubuntu-latest
-    environment: prod
+    environment: main
     if: github.ref == 'refs/heads/main'
 
     steps:
