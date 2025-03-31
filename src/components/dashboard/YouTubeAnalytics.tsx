@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,19 +6,21 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon, Users, Eye, ThumbsUp, MessageSquare, Share2, DollarSign, TrendingUp } from 'lucide-react';
-import { YouTubeService, YouTubeAnalytics } from '@/services/youtubeService';
+import { YouTubeService } from '@/services/youtubeService';
+import type { YouTubeAnalytics as YouTubeAnalyticsType } from '@/services/youtubeService';
 import { cn } from '@/lib/utils';
+import { DateRange } from "react-day-picker";
 
 interface YouTubeAnalyticsProps {
   videoId?: string;
 }
 
 const YouTubeAnalytics: React.FC<YouTubeAnalyticsProps> = ({ videoId }) => {
-  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
-    start: new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000),
-    end: new Date()
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000),
+    to: new Date()
   });
-  const [analytics, setAnalytics] = useState<YouTubeAnalytics | null>(null);
+  const [analytics, setAnalytics] = useState<YouTubeAnalyticsType | null>(null);
   const [channelAnalytics, setChannelAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const youtubeService = YouTubeService.getInstance();
@@ -25,9 +28,15 @@ const YouTubeAnalytics: React.FC<YouTubeAnalyticsProps> = ({ videoId }) => {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
+      // Convert DateRange to the format expected by the API
+      const apiDateRange = dateRange && dateRange.from && dateRange.to ? {
+        start: dateRange.from,
+        end: dateRange.to
+      } : undefined;
+
       const [videoAnalytics, channelStats] = await Promise.all([
-        videoId ? youtubeService.getVideoAnalytics(videoId, dateRange) : null,
-        youtubeService.getChannelAnalytics(dateRange)
+        videoId ? youtubeService.getVideoAnalytics(videoId, apiDateRange) : null,
+        youtubeService.getChannelAnalytics(apiDateRange)
       ]);
       setAnalytics(videoAnalytics || null);
       setChannelAnalytics(channelStats);
@@ -76,8 +85,8 @@ const YouTubeAnalytics: React.FC<YouTubeAnalyticsProps> = ({ videoId }) => {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange ? (
-                `${format(dateRange.start, "LLL dd, y")} - ${format(dateRange.end, "LLL dd, y")}`
+              {dateRange && dateRange.from && dateRange.to ? (
+                `${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`
               ) : (
                 <span>Pick a date range</span>
               )}
@@ -87,7 +96,7 @@ const YouTubeAnalytics: React.FC<YouTubeAnalyticsProps> = ({ videoId }) => {
             <Calendar
               mode="range"
               selected={dateRange}
-              onSelect={(range: any) => setDateRange(range)}
+              onSelect={setDateRange}
               numberOfMonths={2}
             />
           </PopoverContent>
@@ -151,4 +160,4 @@ const YouTubeAnalytics: React.FC<YouTubeAnalyticsProps> = ({ videoId }) => {
   );
 };
 
-export default YouTubeAnalytics; 
+export default YouTubeAnalytics;

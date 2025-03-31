@@ -1,95 +1,35 @@
-import winston from 'winston';
-import { join } from 'path';
-import { mkdir } from 'fs/promises';
 
-const LOG_DIR = 'logs';
-
-// Create logs directory if it doesn't exist
-mkdir(LOG_DIR, { recursive: true }).catch(console.error);
-
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp(),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
-
-// Create logger instance
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  transports: [
-    // Write to console
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    }),
-    // Write to file
-    new winston.transports.File({
-      filename: join(LOG_DIR, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    }),
-    new winston.transports.File({
-      filename: join(LOG_DIR, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
-});
-
-// Add request logging middleware
-export const requestLogger = (req: any, res: any, next: any) => {
-  const start = Date.now();
+// Simple logger for browser environment
+const createLogMethod = (level: string) => (message: string, meta?: any) => {
+  const timestamp = new Date().toISOString();
+  const metaStr = meta ? JSON.stringify(meta) : '';
   
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    logger.info('Request completed', {
-      method: req.method,
-      url: req.url,
-      status: res.statusCode,
-      duration,
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
-  });
+  switch (level) {
+    case 'error':
+      console.error(`[${timestamp}] ${level.toUpperCase()}: ${message}`, meta || '');
+      break;
+    case 'warn':
+      console.warn(`[${timestamp}] ${level.toUpperCase()}: ${message}`, meta || '');
+      break;
+    case 'info':
+      console.info(`[${timestamp}] ${level.toUpperCase()}: ${message}`, meta || '');
+      break;
+    case 'debug':
+      console.debug(`[${timestamp}] ${level.toUpperCase()}: ${message}`, meta || '');
+      break;
+    default:
+      console.log(`[${timestamp}] ${level.toUpperCase()}: ${message}`, meta || '');
+  }
   
-  next();
+  // You can implement additional logging here like sending logs to a service
 };
 
-// Add error logging middleware
-export const errorLogger = (err: any, req: any, res: any, next: any) => {
-  logger.error('Request error', {
-    error: err.message,
-    stack: err.stack,
-    method: req.method,
-    url: req.url,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
-  
-  next(err);
+export const logger = {
+  error: createLogMethod('error'),
+  warn: createLogMethod('warn'),
+  info: createLogMethod('info'),
+  debug: createLogMethod('debug')
 };
-
-// Log unhandled rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection', {
-    reason,
-    promise
-  });
-});
-
-// Log uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception', {
-    error: error.message,
-    stack: error.stack
-  });
-  process.exit(1);
-});
 
 // Export logging functions
 export const logError = (message: string, meta?: any) => {
@@ -108,5 +48,37 @@ export const logDebug = (message: string, meta?: any) => {
   logger.debug(message, meta);
 };
 
+// Simplified versions of middleware functions for browser
+export const requestLogger = (req: any, res: any, next: any) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info('Request completed', {
+      method: req.method,
+      url: req.url,
+      status: res.statusCode,
+      duration,
+      ip: req.ip,
+      userAgent: req.get && req.get('user-agent')
+    });
+  });
+  
+  if (next) next();
+};
+
+export const errorLogger = (err: any, req: any, res: any, next: any) => {
+  logger.error('Request error', {
+    error: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    userAgent: req.get && req.get('user-agent')
+  });
+  
+  if (next) next(err);
+};
+
 // Export logger instance
-export default logger; 
+export default logger;
