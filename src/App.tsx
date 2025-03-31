@@ -5,6 +5,7 @@ import { Routes, Route } from "react-router-dom";
 import { setupProcessPolyfill } from "./utils/process-polyfill";
 import EnhancedLinkExtractor from "./components/dashboard/EnhancedLinkExtractor";
 import { LinkExtractor } from '@/components/linkExtractor/LinkExtractor';
+import { SupabaseTest } from './components/SupabaseTest';
 
 // Set up process polyfill early
 setupProcessPolyfill();
@@ -20,6 +21,7 @@ const App = () => (
   <TooltipProvider>
     <Toaster />
     <Sonner />
+    <SupabaseTest />
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/signin" element={<SignIn />} />
