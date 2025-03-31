@@ -174,7 +174,7 @@ export class YouTubeService {
         if (!response.ok) {
           throw new Error(`Failed to download video: ${response.statusText}`);
         }
-        return response.blob();
+        return await response.blob();
       });
 
       const res = await this.retryWithBackoff(async () => {
@@ -203,7 +203,7 @@ export class YouTubeService {
         });
       });
 
-      const videoId = res.data.id;
+      const videoId = res.data.id as string;
       return {
         videoId,
         videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
@@ -368,4 +368,4 @@ export class YouTubeService {
       return null;
     }
   }
-} 
+}
