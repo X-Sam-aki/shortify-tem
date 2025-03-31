@@ -72,8 +72,12 @@ export class SecurityMiddleware {
     
     if (origin && this.securityService.isOriginAllowed(origin as string)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+      // Fix the string array error by joining array values with commas if needed
+      const methods = 'GET, POST, PUT, DELETE, OPTIONS';
+      const headers = 'Content-Type, Authorization, X-API-Key';
+      
+      res.setHeader('Access-Control-Allow-Methods', methods);
+      res.setHeader('Access-Control-Allow-Headers', headers);
       res.setHeader('Access-Control-Max-Age', '86400');
     }
 

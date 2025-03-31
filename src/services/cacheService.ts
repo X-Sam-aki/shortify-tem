@@ -187,7 +187,9 @@ export class CacheService {
     const fullKeys = keys.map(key => `${prefix}${key}`);
 
     try {
-      const values = await this.client.mget(fullKeys);
+      // The Redis mget method accepts a rest parameter (...keys) or an array
+      // We need to handle both cases, so we spread the array for Redis
+      const values = await this.client.mget(...fullKeys);
       return values.map(value => value ? JSON.parse(value) as T : null);
     } catch (error) {
       this.stats.errors++;

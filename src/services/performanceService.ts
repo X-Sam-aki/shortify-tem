@@ -111,12 +111,14 @@ export class PerformanceService {
     const networkInterfaces: Record<string, { bytesReceived: number, bytesSent: number }> = {};
     
     const osNetworkInterfaces = os.networkInterfaces();
-    Object.keys(osNetworkInterfaces || {}).forEach(name => {
-      networkInterfaces[name] = {
-        bytesReceived: 0,
-        bytesSent: 0
-      };
-    });
+    if (osNetworkInterfaces) {
+      Object.keys(osNetworkInterfaces).forEach(name => {
+        networkInterfaces[name] = {
+          bytesReceived: 0,
+          bytesSent: 0
+        };
+      });
+    }
 
     return {
       cpu: {
