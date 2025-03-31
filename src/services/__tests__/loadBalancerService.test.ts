@@ -1,3 +1,4 @@
+
 import { LoadBalancerService } from '../loadBalancerService';
 import { jest } from '@jest/globals';
 import { NodeInfo, NodeMetrics } from '@/types/loadBalancer';
@@ -11,19 +12,41 @@ jest.mock('@/utils/logger', () => ({
   }
 }));
 
+// Mock service singletons
+jest.mock('../queueService', () => ({
+  QueueService: {
+    getInstance: jest.fn().mockReturnValue({})
+  }
+}));
+
+jest.mock('../performanceService', () => ({
+  PerformanceService: {
+    getInstance: jest.fn().mockReturnValue({
+      getCurrentMetrics: jest.fn().mockResolvedValue({
+        system: {
+          cpu: { usage: 20, cores: 4, load: [1, 1, 1] },
+          memory: { used: 4000, total: 8000, free: 4000, swap: { total: 2000, used: 500, free: 1500 } },
+        },
+        queue: { waiting: 5 }
+      })
+    })
+  }
+}));
+
 describe('LoadBalancerService', () => {
   let loadBalancerService: LoadBalancerService;
 
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
+    // For testing, create a new instance directly
     loadBalancerService = new LoadBalancerService();
   });
 
   test('addNode should add a node to the cluster', async () => {
     const nodeInfo: NodeInfo = { id: 'node-1' };
     await loadBalancerService.addNode(nodeInfo);
-    expect(loadBalancerService.getNodes()).toContainEqual(expect.objectContaining(nodeInfo));
+    expect(loadBalancerService.getNodes()).toContainEqual(expect.objectContaining({ info: nodeInfo }));
   });
 
   test('updateNodeMetrics should update node metrics', async () => {
@@ -89,14 +112,14 @@ describe('LoadBalancerService', () => {
     const nodeInfo: NodeInfo = { id: 'node-1' };
     await loadBalancerService.addNode(nodeInfo);
     await loadBalancerService.removeNode(nodeInfo.id);
-    expect(loadBalancerService.getNodes()).not.toContainEqual(expect.objectContaining(nodeInfo));
+    expect(loadBalancerService.getNodes()).not.toContainEqual(expect.objectContaining({ info: nodeInfo }));
   });
 
   test('getNode should return a node by ID', async () => {
     const nodeInfo: NodeInfo = { id: 'node-1' };
     await loadBalancerService.addNode(nodeInfo);
     const retrievedNode = loadBalancerService.getNode(nodeInfo.id);
-    expect(retrievedNode).toEqual(expect.objectContaining(nodeInfo));
+    expect(retrievedNode).toEqual(expect.objectContaining({ info: nodeInfo }));
   });
 
   test('getNode should return undefined if node does not exist', () => {
@@ -110,7 +133,7 @@ describe('LoadBalancerService', () => {
     await loadBalancerService.addNode(node1);
     await loadBalancerService.addNode(node2);
     const nodes = loadBalancerService.getNodes();
-    expect(nodes).toContainEqual(expect.objectContaining(node1));
-    expect(nodes).toContainEqual(expect.objectContaining(node2));
+    expect(nodes).toContainEqual(expect.objectContaining({ info: node1 }));
+    expect(nodes).toContainEqual(expect.objectContaining({ info: node2 }));
   });
 });

@@ -72,9 +72,14 @@ export class SecurityMiddleware {
     
     if (origin && this.securityService.isOriginAllowed(origin as string)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      // Fix the string array error by joining array values with commas if needed
-      const methods = 'GET, POST, PUT, DELETE, OPTIONS';
-      const headers = 'Content-Type, Authorization, X-API-Key';
+      // Handle headers and methods properly
+      const methods = Array.isArray(req.headers['access-control-request-method']) 
+        ? req.headers['access-control-request-method'].join(', ')
+        : 'GET, POST, PUT, DELETE, OPTIONS';
+        
+      const headers = Array.isArray(req.headers['access-control-request-headers'])
+        ? req.headers['access-control-request-headers'].join(', ')
+        : 'Content-Type, Authorization, X-API-Key';
       
       res.setHeader('Access-Control-Allow-Methods', methods);
       res.setHeader('Access-Control-Allow-Headers', headers);

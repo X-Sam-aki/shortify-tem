@@ -54,3 +54,18 @@ export interface NodeMetrics {
     avgResponseTime: number;
   };
 }
+
+// Add these interfaces for the LoadBalancerService implementation
+export interface ClusterNode {
+  info: NodeInfo;
+  metrics?: NodeMetrics;
+  lastSeen?: Date;
+}
+
+export interface ILoadBalancerService {
+  addNode(nodeInfo: NodeInfo): Promise<void>;
+  updateNodeMetrics(nodeId: string, metrics: NodeMetrics): Promise<void>;
+  removeNode(nodeId: string): Promise<void>;
+  getNode(nodeId: string): ClusterNode | undefined;
+  getNodes(): ClusterNode[];
+}

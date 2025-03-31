@@ -1,6 +1,7 @@
 import { QueueService } from './queueService';
 import { PerformanceService } from './performanceService';
 import { logger } from '@/utils/logger';
+import { NodeInfo, NodeMetrics, ClusterNode, ILoadBalancerService } from '@/types/loadBalancer';
 
 interface WorkerStats {
   id: string;
@@ -22,18 +23,20 @@ interface LoadBalancerOptions {
   workerTimeout: number;
 }
 
-export class LoadBalancerService {
+export class LoadBalancerService implements ILoadBalancerService {
   private static instance: LoadBalancerService;
   private queueService: QueueService;
   private performanceService: PerformanceService;
   private workers: Map<string, WorkerStats>;
+  private nodes: Map<string, ClusterNode>;
   private options: LoadBalancerOptions;
   private healthCheckInterval: NodeJS.Timeout;
 
-  private constructor() {
+  constructor() {
     this.queueService = QueueService.getInstance();
     this.performanceService = PerformanceService.getInstance();
     this.workers = new Map();
+    this.nodes = new Map();
     this.options = {
       maxWorkers: parseInt(process.env.MAX_WORKERS || '5'),
       maxJobsPerWorker: parseInt(process.env.MAX_JOBS_PER_WORKER || '3'),
@@ -50,6 +53,40 @@ export class LoadBalancerService {
     return LoadBalancerService.instance;
   }
 
+  public async addNode(nodeInfo: NodeInfo): Promise<void> {
+    this.nodes.set(nodeInfo.id, {
+      info: nodeInfo,
+      lastSeen: new Date()
+    });
+    logger.info(`Node ${nodeInfo.id} added to cluster`);
+  }
+
+  public async updateNodeMetrics(nodeId: string, metrics: NodeMetrics): Promise<void> {
+    const node = this.nodes.get(nodeId);
+    if (!node) {
+      throw new Error(`Node ${nodeId} not found`);
+    }
+    node.metrics = metrics;
+    node.lastSeen = new Date();
+    logger.info(`Metrics updated for node ${nodeId}`);
+  }
+
+  public async removeNode(nodeId: string): Promise<void> {
+    if (!this.nodes.has(nodeId)) {
+      throw new Error(`Node ${nodeId} not found`);
+    }
+    this.nodes.delete(nodeId);
+    logger.info(`Node ${nodeId} removed from cluster`);
+  }
+
+  public getNode(nodeId: string): ClusterNode | undefined {
+    return this.nodes.get(nodeId);
+  }
+
+  public getNodes(): ClusterNode[] {
+    return Array.from(this.nodes.values());
+  }
+
   private startHealthCheck(): void {
     this.healthCheckInterval = setInterval(async () => {
       try {
@@ -64,15 +101,12 @@ export class LoadBalancerService {
     const now = Date.now();
     const metrics = await this.performanceService.getCurrentMetrics();
 
-    // Update worker stats based on performance metrics
     for (const [workerId, stats] of this.workers.entries()) {
       if (now - stats.lastHeartbeat > this.options.workerTimeout) {
-        // Worker is unresponsive
         stats.status = 'error';
         logger.warn(`Worker ${workerId} is unresponsive`);
       }
 
-      // Update performance metrics
       stats.performance = {
         cpu: metrics.system.cpu.usage,
         memory: (metrics.system.memory.used / metrics.system.memory.total) * 100,
@@ -80,7 +114,6 @@ export class LoadBalancerService {
       };
     }
 
-    // Remove dead workers
     for (const [workerId, stats] of this.workers.entries()) {
       if (stats.status === 'error') {
         this.workers.delete(workerId);
@@ -141,7 +174,6 @@ export class LoadBalancerService {
         stats.currentJobs < stats.maxJobs
       )
       .sort(([_, a], [__, b]) => {
-        // Sort by current jobs (ascending) and then by performance (descending)
         if (a.currentJobs !== b.currentJobs) {
           return a.currentJobs - b.currentJobs;
         }
@@ -157,14 +189,12 @@ export class LoadBalancerService {
       throw new Error('No available workers');
     }
 
-    // Add job to queue with worker assignment
     const job = await this.queueService.addJob({
       ...jobData,
       workerId,
       priority: this.calculateJobPriority(jobData)
     });
 
-    // Update worker status
     await this.updateWorkerStatus(workerId, 'busy');
     await this.updateWorkerJobs(workerId, (this.workers.get(workerId)?.currentJobs || 0) + 1);
 
@@ -172,20 +202,16 @@ export class LoadBalancerService {
   }
 
   private calculateJobPriority(jobData: any): number {
-    // Implement priority calculation based on various factors
     let priority = 0;
 
-    // Higher priority for premium users
     if (jobData.userType === 'premium') {
       priority += 100;
     }
 
-    // Higher priority for shorter videos
     if (jobData.duration < 30) {
       priority += 50;
     }
 
-    // Higher priority for urgent jobs
     if (jobData.urgent) {
       priority += 200;
     }
@@ -220,4 +246,4 @@ export class LoadBalancerService {
     clearInterval(this.healthCheckInterval);
     this.workers.clear();
   }
-} 
+}
