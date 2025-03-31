@@ -1,4 +1,3 @@
-
 // A simplified browser-compatible proxy service
 
 interface ProxyConfig {
@@ -38,27 +37,23 @@ export class ProxyService {
   }
 
   private loadProxies(): ProxyConfig[] {
-    // Mock proxy list for browser environment
-    return [
-      {
-        host: 'proxy1.example.com',
-        port: 8080,
-        username: 'user1',
-        password: 'pass1',
-        successRate: 0.95,
-        totalRequests: 100,
-        failedRequests: 5
-      },
-      {
-        host: 'proxy2.example.com',
-        port: 8080,
-        username: 'user2',
-        password: 'pass2',
-        successRate: 0.9,
-        totalRequests: 80,
-        failedRequests: 8
-      }
-    ];
+    // Load proxies from environment variables or configuration
+    const proxyConfigs = process.env.PROXY_CONFIGS ? JSON.parse(process.env.PROXY_CONFIGS) : [];
+    
+    if (!proxyConfigs.length) {
+      console.warn('No proxy configurations found. Using direct connection.');
+      return [];
+    }
+
+    return proxyConfigs.map((config: any) => ({
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      successRate: 1.0, // Initialize with 100% success rate
+      totalRequests: 0,
+      failedRequests: 0
+    }));
   }
 
   private async waitForRateLimit(): Promise<void> {

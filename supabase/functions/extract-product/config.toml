@@ -1,2 +1,28 @@
+[global]
+runtime = "deno"
+entrypoint = "index.ts"
 
-project_id = "xhxkjhrmzhnvfnzxdhth"
+[functions.extract-product]
+verify_jwt = false
+memory = 1024
+timeout = 60
+
+[[functions.extract-product.environment]]
+name = "SUPABASE_URL"
+value = "your_supabase_project_url"
+
+[[functions.extract-product.environment]]
+name = "SUPABASE_ANON_KEY"
+value = "your_supabase_anon_key"
+
+[[functions.extract-product.environment]]
+name = "MAX_RETRIES"
+value = "3"
+
+[[functions.extract-product.environment]]
+name = "RATE_LIMIT_WINDOW"
+value = "60000"
+
+[[functions.extract-product.environment]]
+name = "MAX_REQUESTS_PER_WINDOW"
+value = "30"

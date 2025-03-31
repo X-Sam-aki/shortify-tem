@@ -1,6 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +9,34 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-const openAIKey = Deno.env.get('OPENAI_API_KEY') || '';
+const MAX_RETRIES = 3;
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 30;
+
+// Simple in-memory rate limiting
+const rateLimit = new Map<string, { count: number; resetTime: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const limit = rateLimit.get(ip);
+  
+  if (!limit) {
+    rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  
+  if (now > limit.resetTime) {
+    rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  
+  if (limit.count >= MAX_REQUESTS_PER_WINDOW) {
+    return true;
+  }
+  
+  limit.count++;
+  return false;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,6 +45,17 @@ serve(async (req) => {
   }
 
   try {
+    // Get client IP for rate limiting
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+    
+    // Check rate limit
+    if (isRateLimited(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      );
+    }
+
     const { url } = await req.json();
     
     if (!url) {
@@ -74,30 +112,103 @@ serve(async (req) => {
       }
     }
 
-    // Generate mock product data since we're having OpenAI API issues
-    const mockProductData = generateMockProductData(url, productId);
+    // Launch browser with retries
+    let browser = null;
+    let retries = 0;
     
-    // Cache the result if we have a product ID
-    if (productId) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      const { error: insertError } = await supabase
-        .from('product_cache')
-        .upsert({
-          product_id: productId,
-          url: url,
-          data: mockProductData,
-          created_at: new Date().toISOString()
+    while (retries < MAX_RETRIES) {
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu'
+          ]
         });
-      
-      if (insertError) {
-        console.error('Error caching product data:', insertError);
+
+        const page = await browser.newPage();
+        
+        // Set viewport and user agent
+        await page.setViewport({ width: 1280, height: 800 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+        // Set timeout for navigation
+        await page.setDefaultNavigationTimeout(30000);
+
+        // Navigate to the product page
+        await page.goto(url, { waitUntil: 'networkidle0' });
+
+        // Wait for critical elements
+        await page.waitForSelector('h1', { timeout: 10000 });
+        await page.waitForSelector('[data-price]', { timeout: 10000 });
+
+        // Extract product data
+        const productData = await page.evaluate(() => {
+          const title = document.querySelector('h1')?.textContent?.trim() || '';
+          const price = document.querySelector('[data-price]')?.getAttribute('data-price') || '0';
+          const originalPrice = document.querySelector('[data-original-price]')?.getAttribute('data-original-price') || price;
+          const description = document.querySelector('[data-description]')?.textContent?.trim() || '';
+          const rating = parseFloat(document.querySelector('[data-rating]')?.getAttribute('data-rating') || '0');
+          const reviews = parseInt(document.querySelector('[data-reviews]')?.getAttribute('data-reviews') || '0');
+          const images = Array.from(document.querySelectorAll('[data-product-image]')).map(img => img.getAttribute('src') || '').filter(Boolean);
+          const discount = document.querySelector('[data-discount]')?.textContent?.trim() || '0%';
+
+          return {
+            title,
+            price: parseFloat(price),
+            originalPrice: parseFloat(originalPrice),
+            description,
+            rating,
+            reviews,
+            images,
+            discount
+          };
+        });
+
+        // Validate extracted data
+        if (!productData.title || !productData.price || !productData.images?.length) {
+          throw new Error('Failed to extract required product data');
+        }
+
+        // Close browser
+        await browser.close();
+
+        // Cache the result if we have a product ID
+        if (productId) {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey);
+          const { error: insertError } = await supabase
+            .from('product_cache')
+            .upsert({
+              product_id: productId,
+              url: url,
+              data: productData,
+              created_at: new Date().toISOString()
+            });
+          
+          if (insertError) {
+            console.error('Error caching product data:', insertError);
+          }
+        }
+
+        return new Response(
+          JSON.stringify(productData),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        if (browser) {
+          await browser.close();
+        }
+        retries++;
+        if (retries === MAX_RETRIES) {
+          throw error;
+        }
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
       }
     }
-
-    return new Response(
-      JSON.stringify(mockProductData),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     console.error('Error in extract-product function:', error);
     return new Response(
@@ -106,46 +217,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Helper function to generate mock product data
-function generateMockProductData(url: string, productId: string | null) {
-  const id = productId || Math.random().toString(36).substring(2, 9);
-  
-  // Generate random placeholder values
-  const reviewCount = Math.floor(Math.random() * 500) + 50;
-  const ratingValue = (Math.random() * 1.5 + 3.5).toFixed(1);
-  const priceValue = Math.floor(Math.random() * 30) + 10;
-  
-  // Sample product names and images for fallback
-  const productNames = [
-    'Wireless Bluetooth Headphones',
-    'Portable Bluetooth Speaker',
-    'Ergonomic Laptop Stand',
-    'LED Desk Lamp with USB Port',
-    'Foldable Phone Stand'
-  ];
-  
-  const sampleProductImages = [
-    'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96804.jpg',
-    'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96805.jpg',
-    'https://img.freepik.com/free-photo/pink-headphones-wireless-digital-device_53876-96806.jpg'
-  ];
-  
-  // Generate placeholder product
-  const productName = productNames[Math.floor(Math.random() * productNames.length)];
-  const productDescription = `High-quality ${productName.toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction.`;
-  const originalPrice = (priceValue * (1 + Math.random() * 0.5)).toFixed(2);
-  const discountPercentage = Math.floor((1 - (priceValue / parseFloat(originalPrice))) * 100);
-  
-  return {
-    id,
-    title: productName,
-    price: priceValue,
-    description: productDescription,
-    images: sampleProductImages,
-    rating: parseFloat(ratingValue),
-    reviews: reviewCount,
-    originalPrice,
-    discount: `${discountPercentage}%`
-  };
-}

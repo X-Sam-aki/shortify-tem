@@ -57,68 +57,47 @@ export class TemuExtractor extends AbstractExtractor {
   }
 
   private async mockExtract(url: string, options: { timeout?: number } = {}): Promise<Product> {
-    // Handle error cases based on URL
-    if (url.includes('error')) {
-      throw new Error('Network error');
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase URL not configured');
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/extract-product`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ url }),
+        signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const product = await response.json();
+      
+      // Validate required fields
+      if (!product.title || !product.price || !product.images?.length) {
+        throw new Error('Invalid product data received');
+      }
+
+      return {
+        ...product,
+        url,
+        platform: 'Temu',
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('Error extracting product data:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to extract product data');
     }
-    if (url.includes('timeout')) {
-      throw new Error('Timeout');
-    }
-    if (url.includes('empty')) {
-      throw new Error('Empty response');
-    }
-    if (url.includes('server-error')) {
-      throw new Error('Server error');
-    }
-
-    // Generate a consistent product ID from the URL
-    const productId = this.extractProductId(url);
-    
-    // Use the product ID to generate consistent mock data
-    const hash = this.hashCode(productId);
-    
-    const productTypes = [
-      'Wireless Earbuds',
-      'Smart Watch',
-      'Phone Holder',
-      'LED Strip Lights',
-      'Bluetooth Speaker',
-      'Power Bank',
-      'Phone Case',
-      'USB Cable',
-      'Wall Charger',
-      'Screen Protector'
-    ];
-
-    const productIndex = Math.abs(hash) % productTypes.length;
-    const basePrice = 10 + (Math.abs(hash) % 40); // Price between $10 and $50
-    const reviewCount = 50 + (Math.abs(hash) % 450); // Reviews between 50 and 500
-    const rating = 3.5 + (Math.abs(hash) % 15) / 10; // Rating between 3.5 and 5.0
-
-    const mockProduct: Product = {
-      id: productId,
-      title: `${productTypes[productIndex]} - Premium Quality`,
-      price: basePrice,
-      description: `High-quality ${productTypes[productIndex].toLowerCase()} with premium features. Perfect for everyday use with long battery life and durable construction.`,
-      images: [
-        `https://picsum.photos/seed/${productId}/800/800`,
-        `https://picsum.photos/seed/${productId}2/800/800`,
-        `https://picsum.photos/seed/${productId}3/800/800`
-      ],
-      rating: rating,
-      reviews: reviewCount,
-      originalPrice: (basePrice * 1.5).toFixed(2),
-      discount: '33%',
-      url: url,
-      platform: 'Temu',
-      timestamp: Date.now()
-    };
-
-    // Simulate network delay
-    const delay = options.timeout ? Math.min(1000, options.timeout - 100) : 1000;
-    await new Promise(resolve => setTimeout(resolve, delay));
-
-    return mockProduct;
   }
 
   public extractProductId(url: string): string {

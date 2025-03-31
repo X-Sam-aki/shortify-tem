@@ -1,6 +1,6 @@
-
 import { DatabaseService } from './databaseService';
 import { logger } from '@/utils/logger';
+import { Supabase } from '@supabase/supabase-js';
 
 // Define mock interface for cloudinary's UploadApiResponse
 interface UploadApiResponse {
@@ -30,9 +30,14 @@ export class StorageService {
   private readonly CLOUDINARY_API_KEY = 'mock-key';
   private readonly CLOUDINARY_API_SECRET = 'mock-secret';
   private readonly STORAGE_BASE_PATH = '/storage/';
+  private supabase: Supabase;
 
   private constructor() {
     this.databaseService = DatabaseService.getInstance();
+    this.supabase = Supabase.createClient(
+      process.env.REACT_APP_SUPABASE_URL,
+      process.env.REACT_APP_SUPABASE_ANON_KEY
+    );
   }
 
   public static getInstance(): StorageService {
@@ -111,23 +116,15 @@ export class StorageService {
   // Get videos by date range
   public async getVideosByDate(startDate: Date, endDate: Date = new Date()): Promise<any[]> {
     try {
-      // Mock implementation
-      return [
-        {
-          id: 'video1',
-          url: 'https://storage.example.com/videos/video1.mp4',
-          title: 'Video 1',
-          createdAt: new Date().toISOString(),
-          duration: 60
-        },
-        {
-          id: 'video2',
-          url: 'https://storage.example.com/videos/video2.mp4',
-          title: 'Video 2',
-          createdAt: new Date().toISOString(),
-          duration: 120
-        }
-      ];
+      const { data, error } = await this.supabase
+        .from('videos')
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       logger.error('Get videos by date error:', error);
       return [];
@@ -147,9 +144,19 @@ export class StorageService {
   }
 
   // Generate signed URL for asset
-  public generateSignedUrl(assetId: string, expiresIn: number = 3600): string {
-    // Mock implementation
-    return `https://storage.example.com/${assetId}?signature=mock&expires=${Date.now() + expiresIn * 1000}`;
+  public async generateSignedUrl(assetId: string, expiresIn: number = 3600): Promise<string> {
+    try {
+      const { data, error } = await this.supabase
+        .storage
+        .from('assets')
+        .createSignedUrl(assetId, expiresIn);
+
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      logger.error('Error generating signed URL:', error);
+      throw error;
+    }
   }
 
   // Cleanup unused assets
