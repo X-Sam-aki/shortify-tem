@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,14 @@ import { generateVideo, VideoGenerationOptions, VideoGenerationResult } from '@/
 interface VideoGenerationPreviewProps {
   product: Product;
   videoSettings: VideoGenerationOptions;
+  onVideoGenerated?: (result: VideoGenerationResult) => void;
 }
 
-const VideoGenerationPreview: React.FC<VideoGenerationPreviewProps> = ({ product, videoSettings }) => {
+const VideoGenerationPreview: React.FC<VideoGenerationPreviewProps> = ({ 
+  product, 
+  videoSettings,
+  onVideoGenerated
+}) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [videoResult, setVideoResult] = useState<VideoGenerationResult | null>(null);
 
@@ -24,6 +30,10 @@ const VideoGenerationPreview: React.FC<VideoGenerationPreviewProps> = ({ product
       
       if (result.status === 'success') {
         toast.success('Video generated successfully!');
+        // Notify the parent component about the generated video
+        if (onVideoGenerated) {
+          onVideoGenerated(result);
+        }
       } else {
         toast.error(`Failed to generate video: ${result.errorMessage}`);
       }
@@ -96,7 +106,19 @@ const VideoGenerationPreview: React.FC<VideoGenerationPreviewProps> = ({ product
           </Button>
           
           {videoResult?.videoUrl && (
-            <Button variant="outline" className="flex items-center">
+            <Button 
+              variant="outline" 
+              className="flex items-center"
+              onClick={() => {
+                // Create a temporary anchor element to download the video
+                const a = document.createElement('a');
+                a.href = videoResult.videoUrl;
+                a.download = `${product.title.replace(/\s+/g, '_')}_video.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+            >
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>

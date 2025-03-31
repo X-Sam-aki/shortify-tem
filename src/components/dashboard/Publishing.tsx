@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,14 @@ import VideoOptimization from './VideoOptimization';
 interface PublishingProps {
   product: Product;
   videoSettings: any;
-  videoUrl: string;
+  videoUrl?: string; // Make videoUrl optional
 }
 
-const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUrl }) => {
+const Publishing: React.FC<PublishingProps> = ({ 
+  product, 
+  videoSettings, 
+  videoUrl = '' // Provide a default empty string 
+}) => {
   const [publishOption, setPublishOption] = useState("now");
   const [title, setTitle] = useState(`🔥 ${product.title} ONLY $${product.price}! [LINK IN BIO]`);
   const [description, setDescription] = useState(
@@ -35,6 +40,14 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUr
   const [privacyStatus, setPrivacyStatus] = useState<'private' | 'unlisted' | 'public'>('private');
   const youtubeService = YouTubeService.getInstance();
   const [publishedVideoId, setPublishedVideoId] = useState<string | null>(null);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string>(videoUrl);
+
+  // When VideoGenerationPreview generates a new video, this callback will be called
+  const handleVideoGenerated = (videoResult: any) => {
+    if (videoResult.videoUrl) {
+      setGeneratedVideoUrl(videoResult.videoUrl);
+    }
+  };
 
   const handleGenerateMetadata = () => {
     toast.success('Generated optimized metadata!');
@@ -53,6 +66,13 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUr
     setIsPublishing(true);
     
     try {
+      // Use the generated video URL or the one passed as prop
+      const videoUrlToPublish = generatedVideoUrl || videoUrl;
+      
+      if (!videoUrlToPublish) {
+        throw new Error('No video URL available. Please generate a video first.');
+      }
+      
       const metadata: YouTubeVideoMetadata = {
         title,
         description,
@@ -62,7 +82,7 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUr
         scheduledTime: publishOption === "schedule" ? date : undefined
       };
 
-      const result = await youtubeService.uploadVideo(videoUrl, metadata);
+      const result = await youtubeService.uploadVideo(videoUrlToPublish, metadata);
       
       if (result.status === 'success') {
         toast.success('Your Short has been published to YouTube!');
@@ -251,6 +271,7 @@ const Publishing: React.FC<PublishingProps> = ({ product, videoSettings, videoUr
           <VideoGenerationPreview
             product={product}
             videoSettings={videoSettings}
+            onVideoGenerated={handleVideoGenerated}
           />
         </div>
       </div>

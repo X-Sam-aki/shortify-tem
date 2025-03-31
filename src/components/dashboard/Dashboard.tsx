@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductInput from './ProductInput';
 import VideoCustomization from './video-customization';
@@ -24,6 +24,9 @@ const Dashboard = () => {
     resetProgress
   } = useProgress();
   
+  // Add a state to track the generated video URL
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState('');
+  
   const handleProductSubmit = (productData: any) => {
     setProduct(productData);
     toast.success('Product information saved');
@@ -32,6 +35,11 @@ const Dashboard = () => {
   const handleCustomizationComplete = (settings: any) => {
     setVideoSettings(settings);
     toast.success('Video customization saved');
+  };
+
+  // Add a handler for when a video is generated
+  const handleVideoGenerated = (videoUrl: string) => {
+    setGeneratedVideoUrl(videoUrl);
   };
   
   const goBack = () => {
@@ -111,7 +119,11 @@ const Dashboard = () => {
         <TabsContent value="publish" className="mt-6">
           {product && (
             <>
-              <Publishing product={product} videoSettings={videoSettings} />
+              <Publishing 
+                product={product} 
+                videoSettings={videoSettings} 
+                videoUrl={generatedVideoUrl} 
+              />
               <div className="mt-6 flex justify-between">
                 <Button 
                   variant="outline" 

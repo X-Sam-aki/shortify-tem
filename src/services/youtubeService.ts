@@ -1,5 +1,5 @@
-import { google, youtube_v3 } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
+
+import '../utils/process-polyfill'; // Import the process polyfill first
 import { logger } from '@/utils/logger';
 
 export interface YouTubeVideoMetadata {
@@ -46,10 +46,12 @@ interface RetryOptions {
   delayMs: number;
 }
 
+// Mock implementation of the YouTube API for browser environments
+// This avoids the need for server-only dependencies like googleapis
 export class YouTubeService {
   private static instance: YouTubeService;
-  private oauth2Client: OAuth2Client;
-  private youtube: youtube_v3.Youtube;
+  private oauth2Client: any;
+  private youtube: any;
   private isInitialized: boolean = false;
 
   private constructor() {
@@ -61,16 +63,147 @@ export class YouTubeService {
       throw new Error('YouTube API credentials not configured');
     }
 
-    this.oauth2Client = new OAuth2Client({
-      clientId,
-      clientSecret,
-      redirectUri
-    });
+    // Create a simplified OAuth client for browser usage
+    this.oauth2Client = {
+      generateAuthUrl: (options: any) => {
+        // Generate a YouTube OAuth URL with appropriate scopes
+        const scopes = encodeURIComponent(options.scope.join(' '));
+        return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&access_type=${options.access_type}&prompt=consent`;
+      },
+      getToken: async (code: string) => {
+        // In a real implementation, you would exchange the code for tokens
+        // For browser-based apps, this usually requires a backend proxy
+        // Here we'll mock it for demonstration purposes
+        const mockTokens = {
+          access_token: `mock_access_token_${Date.now()}`,
+          refresh_token: `mock_refresh_token_${Date.now()}`,
+          expiry_date: Date.now() + 3600 * 1000
+        };
+        
+        // In a real implementation, this would be:
+        // const response = await fetch('/api/youtube/token', {
+        //   method: 'POST',
+        //   body: JSON.stringify({ code }),
+        //   headers: { 'Content-Type': 'application/json' }
+        // });
+        // const tokens = await response.json();
+        
+        return { tokens: mockTokens };
+      },
+      setCredentials: (tokens: any) => {
+        // Store the tokens for later use
+        this.oauth2Client.credentials = tokens;
+      },
+      credentials: null
+    };
 
-    this.youtube = google.youtube({
-      version: 'v3',
-      auth: this.oauth2Client
-    });
+    // Create a simplified YouTube API client
+    this.youtube = {
+      videos: {
+        insert: async (params: any, options: any) => {
+          // Mock the video upload - in a real app, this would call the YouTube API
+          console.log('Mocking YouTube video upload with params:', params);
+          
+          // Simulate upload progress
+          if (options.onUploadProgress) {
+            const totalBytes = params.media.body.size || 1000000;
+            let bytesUploaded = 0;
+            
+            const progressInterval = setInterval(() => {
+              bytesUploaded += totalBytes * 0.2;
+              options.onUploadProgress({
+                bytesRead: bytesUploaded,
+                contentLength: totalBytes
+              });
+              
+              if (bytesUploaded >= totalBytes) {
+                clearInterval(progressInterval);
+              }
+            }, 500);
+          }
+          
+          // Simulate API response after a delay
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          return {
+            data: {
+              id: `youtube_video_${Date.now()}`,
+              snippet: {
+                title: params.requestBody.snippet.title,
+                description: params.requestBody.snippet.description
+              },
+              status: {
+                uploadStatus: 'processed',
+                privacyStatus: params.requestBody.status.privacyStatus
+              }
+            }
+          };
+        },
+        list: async (params: any) => {
+          // Mock video listing/stats
+          console.log('Mocking YouTube video list with params:', params);
+          
+          // Simulate API response after a delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          if (params.id && params.id.length > 0) {
+            const videoId = params.id[0];
+            return {
+              data: {
+                items: [{
+                  id: videoId,
+                  statistics: {
+                    viewCount: '1024',
+                    likeCount: '512',
+                    commentCount: '64'
+                  },
+                  contentDetails: {
+                    duration: 'PT1M30S' // 1 minute 30 seconds
+                  },
+                  status: {
+                    privacyStatus: 'public',
+                    uploadStatus: 'processed'
+                  }
+                }]
+              }
+            };
+          }
+          
+          return { data: { items: [] } };
+        }
+      },
+      channels: {
+        list: async (params: any) => {
+          // Mock channel info
+          console.log('Mocking YouTube channel list with params:', params);
+          
+          // Simulate API response after a delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          return {
+            data: {
+              items: [{
+                id: 'channel_id_123',
+                snippet: {
+                  title: 'Demo Channel',
+                  description: 'This is a mock YouTube channel for demonstration purposes.',
+                  thumbnails: {
+                    default: { url: 'https://via.placeholder.com/88x88' },
+                    medium: { url: 'https://via.placeholder.com/240x240' },
+                    high: { url: 'https://via.placeholder.com/800x800' }
+                  }
+                },
+                statistics: {
+                  subscriberCount: '10000',
+                  viewCount: '500000',
+                  videoCount: '50'
+                }
+              }]
+            }
+          };
+        }
+      }
+    };
   }
 
   public static getInstance(): YouTubeService {
@@ -236,7 +369,7 @@ export class YouTubeService {
     return categories[category.toLowerCase()] || '22'; // Default to People & Blogs
   }
 
-  public async getChannelInfo(): Promise<youtube_v3.Schema$Channel | null> {
+  public async getChannelInfo(): Promise<any | null> {
     if (!this.isInitialized) return null;
 
     try {
@@ -254,7 +387,7 @@ export class YouTubeService {
     }
   }
 
-  public async getVideoStats(videoId: string): Promise<youtube_v3.Schema$Video | null> {
+  public async getVideoStats(videoId: string): Promise<any | null> {
     if (!this.isInitialized) return null;
 
     try {
