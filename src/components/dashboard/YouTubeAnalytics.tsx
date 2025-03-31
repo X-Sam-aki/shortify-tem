@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +6,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { CalendarIcon, Users, Eye, ThumbsUp, MessageSquare, Share2, DollarSign, TrendingUp } from 'lucide-react';
 import { YouTubeService } from '@/services/youtubeService';
-import type { YouTubeAnalytics as YouTubeAnalyticsType } from '@/services/youtubeService';
 import { cn } from '@/lib/utils';
 import { DateRange } from "react-day-picker";
+
+interface YouTubeAnalyticsType {
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  estimatedRevenue: number;
+  averageViewDuration: number;
+  retentionRate: number;
+  clickThroughRate: number;
+  conversionRate: number;
+}
 
 interface YouTubeAnalyticsProps {
   videoId?: string;
