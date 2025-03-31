@@ -1,10 +1,19 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "std/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface Product {
+  title: string;
+  description?: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  discount?: string;
+  originalPrice?: string;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -72,7 +81,7 @@ function extractKeywords(text: string): string[] {
   return [...foundTypes, ...foundQualities];
 }
 
-function generateEnhancedDescription(product: any, keywords: string[]): string {
+function generateEnhancedDescription(product: Product, keywords: string[]): string {
   const originalDescription = product.description || '';
   
   // If we have a good description already, return it
@@ -83,7 +92,7 @@ function generateEnhancedDescription(product: any, keywords: string[]): string {
   // Generate a description based on keywords and product info
   const baseDescription = `This ${keywords.join(' ')} is perfect for everyday use.`;
   
-  const features = [];
+  const features: string[] = [];
   
   // Add feature statements based on keywords
   if (keywords.includes('wireless') || keywords.includes('bluetooth')) {
@@ -133,7 +142,7 @@ function generateEnhancedDescription(product: any, keywords: string[]): string {
   return `${baseDescription} ${features.join(' ')} ${originalDescription}`.trim();
 }
 
-function generateProductSummary(product: any, keywords: string[]): string {
+function generateProductSummary(product: Product, keywords: string[]): string {
   const typeWord = keywords.length > 0 ? keywords[0] : 'product';
   
   const qualityAdjectives = ['high-quality', 'excellent', 'reliable', 'impressive', 'practical'];
