@@ -8,7 +8,8 @@ jest.mock('@/utils/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),
-    warn: jest.fn()
+    warn: jest.fn(),
+    debug: jest.fn()
   }
 }));
 
@@ -33,47 +34,23 @@ jest.mock('../performanceService', () => ({
   }
 }));
 
-// Mock the singleton pattern to allow direct instantiation for testing
+// Mock the singleton pattern for testing
 jest.mock('../loadBalancerService', () => {
   const originalModule = jest.requireActual('../loadBalancerService');
+  // Use the actual implementation but override getInstance
   return {
     ...originalModule,
-    LoadBalancerService: class {
-      static getInstance = jest.fn(() => new originalModule.LoadBalancerService());
-      private nodes: Map<string, any> = new Map();
-      
-      addNode = jest.fn(async (nodeInfo: NodeInfo) => {
-        this.nodes.set(nodeInfo.id, { info: nodeInfo, lastSeen: new Date() });
-      });
-      
-      updateNodeMetrics = jest.fn(async (nodeId: string, metrics: NodeMetrics) => {
-        const node = this.nodes.get(nodeId);
-        if (!node) throw new Error(`Node ${nodeId} not found`);
-        node.metrics = metrics;
-        node.lastSeen = new Date();
-      });
-      
-      removeNode = jest.fn(async (nodeId: string) => {
-        if (!this.nodes.has(nodeId)) throw new Error(`Node ${nodeId} not found`);
-        this.nodes.delete(nodeId);
-      });
-      
-      getNode = jest.fn((nodeId: string) => this.nodes.get(nodeId));
-      
-      getNodes = jest.fn(() => Array.from(this.nodes.values()));
-      
-      startHealthCheck = jest.fn();
-    }
+    LoadBalancerService: originalModule.LoadBalancerService
   };
 });
 
 describe('LoadBalancerService', () => {
-  let loadBalancerService: any;
+  let loadBalancerService: LoadBalancerService;
 
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
-    // For testing, create a new instance directly
+    // Create a new instance directly for testing
     loadBalancerService = new LoadBalancerService();
   });
 
