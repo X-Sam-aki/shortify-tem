@@ -2,16 +2,39 @@
 import { Product } from '@/types/product';
 import { AbstractExtractor } from './baseExtractor';
 
-// Mock implementation for cheerio since we can't install it
+// Define a proper cheerio mock
 const cheerio = {
   load: (html: string) => {
-    // Mock implementation that returns an object with methods similar to cheerio
-    return {
-      text: () => '',
-      find: () => ({ text: () => '' }),
-      attr: () => '',
-      each: (callback: Function) => {}
+    // This returns a function that can be called like $('selector')
+    const $ = (selector: string) => {
+      // Return an object with chainable methods
+      return {
+        text: () => "Mock Text for " + selector,
+        find: (childSelector: string) => $(`${selector} ${childSelector}`),
+        attr: (attrName: string) => "mock-attribute",
+        each: (callback: (i: number, el: any) => void) => {
+          // Mock each by calling the callback a few times with mock elements
+          for (let i = 0; i < 3; i++) {
+            callback(i, { 
+              tagName: 'div', 
+              getAttribute: (name: string) => `mock-${name}-${i}` 
+            });
+          }
+        }
+      };
     };
+    
+    // Add properties from the mock to the function
+    Object.assign($, {
+      text: () => "Mock Text",
+      find: () => ({ text: () => "Mock Found Text" }),
+      attr: () => "mock-attribute",
+      each: (callback: Function) => {
+        for (let i = 0; i < 3; i++) callback(i, {});
+      }
+    });
+    
+    return $;
   }
 };
 
@@ -46,7 +69,7 @@ export class TemuExtractor extends AbstractExtractor {
     // Extract images
     const images: string[] = [];
     $('.product-gallery img').each((_, element) => {
-      const src = $(element).attr('src');
+      const src = element.getAttribute('src') || "";
       if (src) {
         images.push(src);
       }
@@ -68,7 +91,6 @@ export class TemuExtractor extends AbstractExtractor {
       images,
       rating,
       reviews,
-      url,
       originalPrice,
       discount
     };

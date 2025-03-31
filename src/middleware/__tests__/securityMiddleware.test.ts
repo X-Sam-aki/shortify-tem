@@ -83,6 +83,7 @@ describe('SecurityMiddleware', () => {
       mockReq.headers = { 'x-api-key': 'test-key' };
       mockSecurityService.validateApiKey.mockResolvedValue({
         key: 'test-key',
+        name: 'Test API Key',
         userId: 'test-user',
         permissions: ['read'],
         createdAt: new Date(),
@@ -289,4 +290,4 @@ describe('SecurityMiddleware', () => {
       expect(mockSecurityService.logSecurityEvent).toHaveBeenCalled();
     });
   });
-}); 
+});

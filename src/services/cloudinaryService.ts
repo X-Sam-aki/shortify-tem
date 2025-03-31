@@ -1,5 +1,12 @@
 
-import { VideoTemplate } from '@/types/videoTemplates';
+// Define VideoTemplate enum here instead of importing it
+export enum VideoTemplate {
+  ProductShowcase = "product_showcase",
+  ReviewHighlight = "review_highlight",
+  PriceComparison = "price_comparison",
+  FeatureDemo = "feature_demo",
+  UnboxingExperience = "unboxing_experience"
+}
 
 export class CloudinaryService {
   private static instance: CloudinaryService;
@@ -49,8 +56,8 @@ export class CloudinaryService {
     template: VideoTemplate | string, 
     data: any
   ): Promise<string> {
-    // Convert VideoTemplate enum to string if needed
-    const templateName = typeof template === 'string' ? template : String(template);
+    // For type safety, convert VideoTemplate enum to string
+    const templateName = typeof template === 'string' ? template : template.toString();
     console.log(`Creating video with template ${templateName} (mock)`, data);
     return `https://res.cloudinary.com/${this.cloudName}/video/upload/v1234567890/template-${templateName}.mp4`;
   }

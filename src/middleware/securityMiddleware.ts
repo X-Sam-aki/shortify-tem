@@ -1,6 +1,10 @@
+
 import { Request, Response, NextFunction } from 'express';
 import { SecurityService } from '@/services/securityService';
 import { logger } from '@/utils/logger';
+
+// Define the explicit severity type
+type SecuritySeverity = "high" | "low" | "medium" | "critical";
 
 export class SecurityMiddleware {
   private static securityService = SecurityService.getInstance();
@@ -118,13 +122,20 @@ export class SecurityMiddleware {
 
     res.on('finish', () => {
       const duration = Date.now() - startTime;
+      const resStatusCode = res.statusCode;
+      
+      // Determine severity based on status code
+      let severity: SecuritySeverity = "low";
+      if (resStatusCode >= 500) severity = "high";
+      else if (resStatusCode >= 400) severity = "medium"; 
+
       const event = {
         type: 'api_request',
-        severity: res.statusCode >= 500 ? 'high' : res.statusCode >= 400 ? 'medium' : 'low',
+        severity,
         details: {
           method: req.method,
           path: req.path,
-          statusCode: res.statusCode,
+          statusCode: resStatusCode,
           duration,
           ip: req.ip,
           userAgent: req.headers['user-agent']
@@ -146,7 +157,7 @@ export class SecurityMiddleware {
 
     const event = {
       type: 'error',
-      severity: 'high',
+      severity: "high" as SecuritySeverity,
       details: {
         error: error.message,
         stack: error.stack,
@@ -162,4 +173,4 @@ export class SecurityMiddleware {
 
     res.status(500).json({ error: 'Internal server error' });
   }
-} 
+}
