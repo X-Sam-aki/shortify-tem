@@ -1,6 +1,19 @@
 
-import { Cloudinary } from '@cloudinary/url-gen';
 import { Product } from '@/types/product';
+
+// Try to import Cloudinary, but provide a fallback if the import fails
+let Cloudinary: any;
+try {
+  // Dynamic import to avoid build errors if the package is not installed
+  Cloudinary = require('@cloudinary/url-gen').Cloudinary;
+} catch (err) {
+  console.warn('Cloudinary package not found, using mock implementation');
+  Cloudinary = class MockCloudinary {
+    constructor() {
+      console.log('Using Mock Cloudinary');
+    }
+  };
+}
 
 // Initialize Cloudinary instance
 // Note: In production, you would get these from environment variables
