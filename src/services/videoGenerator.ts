@@ -1,46 +1,71 @@
 
 import { Product } from '@/types/product';
 
-// Try to import Cloudinary, but provide a fallback if the import fails
-let Cloudinary: any;
-try {
-  // Dynamic import to avoid build errors if the package is not installed
-  Cloudinary = require('@cloudinary/url-gen').Cloudinary;
-} catch (err) {
-  console.warn('Cloudinary package not found, using mock implementation');
-  Cloudinary = class MockCloudinary {
-    constructor() {
-      console.log('Using Mock Cloudinary');
-    }
-  };
-}
-
-// Initialize Cloudinary instance
-// Note: In production, you would get these from environment variables
-const cld = new Cloudinary({
-  cloud: {
-    cloudName: 'demo',
-  },
-  url: {
-    secure: true
-  }
-});
-
+// Define the types for video generation
 export interface VideoGenerationOptions {
   template: string;
   music: string;
   fontStyle?: string;
   colorScheme?: string;
   animation?: string;
-  watermark?: boolean;
+  textOverlays?: Array<{
+    text: string;
+    position: string;
+    style: string;
+  }>;
 }
 
 export interface VideoGenerationResult {
-  status: 'success' | 'error' | 'pending';
+  status: 'success' | 'error';
   videoUrl?: string;
   thumbnailUrl?: string;
-  errorMessage?: string;
   jobId?: string;
+  errorMessage?: string;
+}
+
+// Check if Cloudinary package is available and use a mock implementation if not
+let cloudinaryImported = false;
+let Cloudinary: any;
+
+try {
+  // Dynamic import to avoid errors in browser environments
+  // @ts-ignore
+  import('@cloudinary/url-gen').then(module => {
+    Cloudinary = module.Cloudinary;
+    cloudinaryImported = true;
+    console.info('Cloudinary package loaded successfully');
+  }).catch(error => {
+    console.warn('Cloudinary package not found, using mock implementation');
+    cloudinaryImported = false;
+  });
+} catch (e) {
+  console.warn('Cloudinary package not found, using mock implementation');
+  cloudinaryImported = false;
+}
+
+// Mock Cloudinary in browser
+let cld: any;
+
+if (cloudinaryImported && Cloudinary) {
+  cld = new Cloudinary({
+    cloud: {
+      cloudName: 'demo'
+    },
+    url: {
+      secure: true
+    }
+  });
+} else {
+  console.info('Using Mock Cloudinary');
+  // Mock implementation
+  cld = {
+    video: (id: string) => ({
+      toURL: () => `https://res.cloudinary.com/demo/video/upload/${id}`
+    }),
+    image: (id: string) => ({
+      toURL: () => `https://res.cloudinary.com/demo/image/upload/${id}`
+    })
+  };
 }
 
 /**
@@ -53,16 +78,16 @@ export const generateVideo = async (
   try {
     console.log('Generating video for product:', product.title);
     console.log('With options:', options);
-    
+
     // For demonstration purposes, we'll simulate a video generation process
     // In a real implementation, you would call Cloudinary's API here
-    
+
     // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
     // In a real implementation, you would use Cloudinary's video transformation APIs
     // to create a video from product images and apply overlays, animations, etc.
-    
+
     // For demo, we'll just return a mock result
     const mockVideoId = `demo-${Date.now()}`;
     

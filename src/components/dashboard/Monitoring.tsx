@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -30,9 +31,9 @@ interface JobStatus {
 
 export function Monitoring() {
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
-  const [alertStats, setAlertStats] = useState<AlertStats | null>(null);
+  const [alertStats, setAlertStats] = useState<AlertStats>({ error: 0, warning: 0, info: 0 });
   const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
-  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [jobStatus, setJobStatus] = useState<JobStatus>({ backup: false, storage: false, cleanup: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +49,12 @@ export function Monitoring() {
 
         // Fetch alert stats
         const alerts = monitoringService.getAlertStats();
-        setAlertStats(alerts);
+        // Convert Record<string, number> to match AlertStats shape
+        setAlertStats({
+          error: alerts.error || 0,
+          warning: alerts.warning || 0,
+          info: alerts.info || 0
+        });
 
         // Fetch recent alerts
         const recent = monitoringService.getRecentAlerts(5);
@@ -56,7 +62,12 @@ export function Monitoring() {
 
         // Fetch job status
         const status = schedulerService.getJobStatus();
-        setJobStatus(status);
+        // Convert Record<string, boolean> to match JobStatus shape
+        setJobStatus({
+          backup: status.backup || false,
+          storage: status.storage || false,
+          cleanup: status.cleanup || false
+        });
       } catch (error) {
         console.error('Failed to fetch monitoring data:', error);
       } finally {
@@ -188,7 +199,7 @@ export function Monitoring() {
         <CardContent>
           <div className="space-y-4">
             {recentAlerts.map((alert, index) => (
-              <Alert key={index} variant={alert.type === 'error' ? 'destructive' : alert.type === 'warning' ? 'default' : 'secondary'}>
+              <Alert key={index} variant={alert.type === 'error' ? 'destructive' : 'default'}>
                 <AlertTitle className="flex items-center gap-2">
                   {alert.type === 'error' ? (
                     <AlertCircle className="h-4 w-4" />
@@ -202,7 +213,7 @@ export function Monitoring() {
                 <AlertDescription>
                   <div className="flex items-center justify-between text-sm">
                     <span>{formatDate(alert.timestamp)}</span>
-                    <Badge variant={alert.type === 'error' ? 'destructive' : alert.type === 'warning' ? 'default' : 'secondary'}>
+                    <Badge variant={alert.type === 'error' ? 'destructive' : 'default'}>
                       {alert.type}
                     </Badge>
                   </div>
@@ -219,4 +230,4 @@ export function Monitoring() {
       </Card>
     </div>
   );
-} 
+}

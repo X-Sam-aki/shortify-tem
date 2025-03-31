@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, YoutubeIcon, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Product } from '@/types/product';
-import { generateVideo, VideoGenerationOptions, VideoGenerationResult } from '@/services/videoGenerator';
+import { VideoGenerationOptions, VideoGenerationResult, generateVideo } from '@/services/videoGenerator';
 
 interface VideoGenerationPreviewProps {
   product: Product;

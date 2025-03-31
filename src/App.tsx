@@ -1,9 +1,14 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/auth/AuthContext";
+import { setupProcessPolyfill } from "./utils/process-polyfill";
+
+// Set up process polyfill early
+setupProcessPolyfill();
 
 import Index from "./pages/Index";
 import SignIn from "./pages/SignIn";

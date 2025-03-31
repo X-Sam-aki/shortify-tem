@@ -6,6 +6,7 @@ import { testVideoGeneration } from './videoGenerationTest';
 import { testTemplateRendering } from './templateRenderingTest';
 import { testYouTubePublishing } from './youtubePublishingTest';
 import { VideoGenerationOptions } from '@/services/videoGenerator';
+import { Product } from '@/types/product';
 
 /**
  * Run all tests
@@ -16,8 +17,8 @@ export const runAllTests = async () => {
   // Test URL validation
   const urlResults = testUrlValidation();
   
-  // Test product extraction
-  const productResults = testProductExtraction();
+  // Test product extraction - need to await this since it's an async function
+  const productResults = await testProductExtraction();
   
   // Test template rendering
   const templateResults = testTemplateRendering('flash-deal');
