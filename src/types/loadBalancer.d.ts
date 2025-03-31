@@ -69,3 +69,27 @@ export interface ILoadBalancerService {
   getNode(nodeId: string): ClusterNode | undefined;
   getNodes(): ClusterNode[];
 }
+
+// Add a partial metrics type for testing
+export interface PartialNodeMetrics {
+  system: {
+    cpu: {
+      usage: number;
+      cores: number;
+      load: number[];
+    };
+    memory: {
+      used: number;
+      total: number;
+      free: number;
+      swap: {
+        total: number;
+        used: number;
+        free: number;
+      };
+    };
+  };
+  queue: {
+    waiting: number;
+  };
+}

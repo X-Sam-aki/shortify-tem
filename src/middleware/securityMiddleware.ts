@@ -72,17 +72,20 @@ export class SecurityMiddleware {
     
     if (origin && this.securityService.isOriginAllowed(origin as string)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      // Handle headers and methods properly
-      const methods = Array.isArray(req.headers['access-control-request-method']) 
-        ? req.headers['access-control-request-method'].join(', ')
-        : 'GET, POST, PUT, DELETE, OPTIONS';
-        
-      const headers = Array.isArray(req.headers['access-control-request-headers'])
-        ? req.headers['access-control-request-headers'].join(', ')
-        : 'Content-Type, Authorization, X-API-Key';
       
-      res.setHeader('Access-Control-Allow-Methods', methods);
-      res.setHeader('Access-Control-Allow-Headers', headers);
+      // Handle methods and headers correctly with proper type handling
+      const requestMethod = req.headers['access-control-request-method'];
+      const methods = Array.isArray(requestMethod) 
+        ? requestMethod.join(', ')
+        : requestMethod || 'GET, POST, PUT, DELETE, OPTIONS';
+        
+      const requestHeaders = req.headers['access-control-request-headers'];
+      const headers = Array.isArray(requestHeaders) 
+        ? requestHeaders.join(', ')
+        : requestHeaders || 'Content-Type, Authorization, X-API-Key';
+      
+      res.setHeader('Access-Control-Allow-Methods', methods as string);
+      res.setHeader('Access-Control-Allow-Headers', headers as string);
       res.setHeader('Access-Control-Max-Age', '86400');
     }
 

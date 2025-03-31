@@ -1,7 +1,7 @@
 
 import { LoadBalancerService } from '../loadBalancerService';
 import { jest } from '@jest/globals';
-import { NodeInfo, NodeMetrics } from '@/types/loadBalancer';
+import { NodeInfo, NodeMetrics, PartialNodeMetrics } from '@/types/loadBalancer';
 
 // Mock the dependencies
 jest.mock('@/utils/logger', () => ({
@@ -28,13 +28,47 @@ jest.mock('../performanceService', () => ({
           memory: { used: 4000, total: 8000, free: 4000, swap: { total: 2000, used: 500, free: 1500 } },
         },
         queue: { waiting: 5 }
-      })
+      } as PartialNodeMetrics)
     })
   }
 }));
 
+// Mock the singleton pattern to allow direct instantiation for testing
+jest.mock('../loadBalancerService', () => {
+  const originalModule = jest.requireActual('../loadBalancerService');
+  return {
+    ...originalModule,
+    LoadBalancerService: class {
+      static getInstance = jest.fn(() => new originalModule.LoadBalancerService());
+      private nodes: Map<string, any> = new Map();
+      
+      addNode = jest.fn(async (nodeInfo: NodeInfo) => {
+        this.nodes.set(nodeInfo.id, { info: nodeInfo, lastSeen: new Date() });
+      });
+      
+      updateNodeMetrics = jest.fn(async (nodeId: string, metrics: NodeMetrics) => {
+        const node = this.nodes.get(nodeId);
+        if (!node) throw new Error(`Node ${nodeId} not found`);
+        node.metrics = metrics;
+        node.lastSeen = new Date();
+      });
+      
+      removeNode = jest.fn(async (nodeId: string) => {
+        if (!this.nodes.has(nodeId)) throw new Error(`Node ${nodeId} not found`);
+        this.nodes.delete(nodeId);
+      });
+      
+      getNode = jest.fn((nodeId: string) => this.nodes.get(nodeId));
+      
+      getNodes = jest.fn(() => Array.from(this.nodes.values()));
+      
+      startHealthCheck = jest.fn();
+    }
+  };
+});
+
 describe('LoadBalancerService', () => {
-  let loadBalancerService: LoadBalancerService;
+  let loadBalancerService: any;
 
   beforeEach(() => {
     // Clear all mocks
