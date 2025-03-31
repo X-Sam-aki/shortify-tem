@@ -9,5 +9,6 @@ export interface Product {
   reviews: number;
   originalPrice?: string;
   discount?: string;
-  url?: string; // Add this property
+  url: string; // Make this required instead of optional
+  specifications?: Record<string, string>; // Add this property
 }

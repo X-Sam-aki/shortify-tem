@@ -35,6 +35,6 @@ declare interface ApiKey {
   permissions: string[];
   createdAt: Date;
   lastUsed: Date;
-  expiresAt: Date;
+  expiresAt?: Date;
   isActive: boolean;
 }

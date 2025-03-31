@@ -45,7 +45,11 @@ export class SecurityMiddleware {
   // Rate limiting middleware
   public static rateLimit(userType: 'default' | 'premium' | 'admin' = 'default') {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-      const identifier = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
+      const identifier = req.ip || 
+        (Array.isArray(req.headers['x-forwarded-for']) 
+          ? req.headers['x-forwarded-for'][0] 
+          : req.headers['x-forwarded-for'] as string) || 
+        'unknown';
       
       try {
         const allowed = await this.securityService.checkRateLimit(identifier, userType);
@@ -65,7 +69,7 @@ export class SecurityMiddleware {
   public static cors(req: Request, res: Response, next: NextFunction): void {
     const origin = req.headers.origin;
     
-    if (origin && this.securityService.isOriginAllowed(origin)) {
+    if (origin && this.securityService.isOriginAllowed(origin as string)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');

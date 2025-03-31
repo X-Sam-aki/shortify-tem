@@ -49,7 +49,7 @@ export function Monitoring() {
 
         // Fetch alert stats
         const alerts = monitoringService.getAlertStats();
-        // Convert Record<string, number> to match AlertStats shape
+        // Convert to AlertStats shape
         setAlertStats({
           error: alerts.error || 0,
           warning: alerts.warning || 0,
@@ -62,7 +62,7 @@ export function Monitoring() {
 
         // Fetch job status
         const status = schedulerService.getJobStatus();
-        // Convert Record<string, boolean> to match JobStatus shape
+        // Convert to JobStatus shape
         setJobStatus({
           backup: status.backup || false,
           storage: status.storage || false,

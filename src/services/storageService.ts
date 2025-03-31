@@ -109,7 +109,7 @@ export class StorageService {
   }
 
   // Get videos by date range
-  public async getVideosByDate(startDate: Date, endDate: Date): Promise<any[]> {
+  public async getVideosByDate(startDate: Date, endDate: Date = new Date()): Promise<any[]> {
     try {
       // Mock implementation
       return [
@@ -169,15 +169,12 @@ export class StorageService {
   }
 
   // Get storage stats
-  public async getStorageStats(): Promise<{ totalSize: number; totalAssets: number; assetsByType: Record<string, number> }> {
+  public async getStorageStats(): Promise<{ totalSize: number; videoCount: number; imageCount: number; coldStorageSize: number }> {
     return {
       totalSize: 1024 * 1024 * 100, // 100MB
-      totalAssets: 50,
-      assetsByType: {
-        image: 30,
-        video: 15,
-        raw: 5
-      }
+      videoCount: 15,
+      imageCount: 30,
+      coldStorageSize: 1024 * 1024 * 50 // 50MB
     };
   }
 

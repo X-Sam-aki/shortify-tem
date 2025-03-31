@@ -1,8 +1,9 @@
+
 import { DatabaseService } from './databaseService';
 import { StorageService } from './storageService';
 import { BackupService } from './backupService';
 import { logger } from '@/utils/logger';
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 
 interface AlertConfig {
   email?: string;
@@ -23,7 +24,7 @@ export class MonitoringService {
   private databaseService: DatabaseService;
   private storageService: StorageService;
   private backupService: BackupService;
-  private emailTransporter: nodemailer.Transporter;
+  private emailTransporter: nodemailer.Transporter | null = null;
   private readonly DEFAULT_STORAGE_THRESHOLD = 100 * 1024 * 1024 * 1024; // 100GB
   private readonly DEFAULT_BACKUP_FAILURE_THRESHOLD = 3;
   private alerts: Alert[] = [];
@@ -156,6 +157,8 @@ export class MonitoringService {
 
   // Send email notification
   private async sendEmail(alert: Alert): Promise<void> {
+    if (!this.emailTransporter) return;
+    
     const subject = `[${alert.type.toUpperCase()}] ${alert.message}`;
     const body = `
       Alert Type: ${alert.type}
@@ -165,8 +168,8 @@ export class MonitoringService {
     `;
 
     await this.emailTransporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: process.env.ALERT_EMAIL,
+      from: process.env.SMTP_FROM || 'alerts@example.com',
+      to: process.env.ALERT_EMAIL || 'admin@example.com',
       subject,
       text: body
     });
@@ -206,13 +209,15 @@ export class MonitoringService {
       });
     }
 
-    await fetch(process.env.SLACK_WEBHOOK_URL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    if (process.env.SLACK_WEBHOOK_URL) {
+      await fetch(process.env.SLACK_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+    }
   }
 
   // Get recent alerts
@@ -236,4 +241,4 @@ export class MonitoringService {
     logger.error('Monitoring error:', error);
     throw new Error(error.message || 'Monitoring operation failed');
   }
-} 
+}

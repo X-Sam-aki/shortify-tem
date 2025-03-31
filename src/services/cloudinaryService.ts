@@ -56,8 +56,8 @@ export class CloudinaryService {
     template: VideoTemplate | string, 
     data: any
   ): Promise<string> {
-    // For type safety, convert VideoTemplate enum to string
-    const templateName = typeof template === 'string' ? template : template.toString();
+    // Convert VideoTemplate enum to string properly
+    const templateName = typeof template === 'string' ? template : VideoTemplate[template as VideoTemplate];
     console.log(`Creating video with template ${templateName} (mock)`, data);
     return `https://res.cloudinary.com/${this.cloudName}/video/upload/v1234567890/template-${templateName}.mp4`;
   }
