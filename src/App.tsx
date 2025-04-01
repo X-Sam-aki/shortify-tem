@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +18,7 @@ import SignUp from "./pages/SignUp";
 import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
 import YouTubeCallback from "@/pages/auth/youtube/callback";
+import TestPage from "./pages/TestPage";
 
 const App = () => (
   <ErrorBoundary>
@@ -65,6 +67,7 @@ const App = () => (
             </ProtectedRoute>
           } 
         />
+        <Route path="/test" element={<TestPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </TooltipProvider>
