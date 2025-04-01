@@ -26,9 +26,9 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || '')
   },
   build: {
+    outDir: 'dist',
     sourcemap: mode === 'development',
     rollupOptions: {
-      // Ensure that rollup doesn't get confused by TypeScript options
       treeshake: true
     }
   }
