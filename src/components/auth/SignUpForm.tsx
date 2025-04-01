@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from './useAuth';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { validateEmail, validatePassword, validatePasswordMatch, formatValidationErrors } from '@/utils/validation';
 
 const SignUpForm = () => {
   const [name, setName] = useState('');
@@ -14,34 +15,47 @@ const SignUpForm = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [formError, setFormError] = useState('');
   const { signUp, isLoading } = useAuth();
-  const navigate = useNavigate();
 
-  const validatePasswords = () => {
-    if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-      return false;
-    }
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      return false;
-    }
+  const validateForm = (): boolean => {
+    let isValid = true;
+    setEmailError('');
     setPasswordError('');
-    return true;
+    
+    // Validate email
+    const emailErrors = validateEmail(email);
+    if (emailErrors.length > 0) {
+      setEmailError(formatValidationErrors(emailErrors));
+      isValid = false;
+    }
+
+    // Validate password
+    const passwordErrors = validatePassword(password);
+    const matchErrors = validatePasswordMatch(password, confirmPassword);
+    const allPasswordErrors = [...passwordErrors, ...matchErrors];
+    
+    if (allPasswordErrors.length > 0) {
+      setPasswordError(formatValidationErrors(allPasswordErrors));
+      isValid = false;
+    }
+
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    setEmailError('');
+    setPasswordError('');
     
-    if (!validatePasswords()) return;
+    if (!validateForm()) return;
     
     try {
       await signUp(email, password, name);
-      navigate('/dashboard');
+      // Navigation will be handled by the auth state change listener
     } catch (error: any) {
-      // Error is handled in the auth context, but we can set a form error here too
       setFormError(error.message || 'An error occurred during sign up');
     }
   };
@@ -69,6 +83,7 @@ const SignUpForm = () => {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={isLoading}
               className="input-field"
             />
           </div>
@@ -81,8 +96,12 @@ const SignUpForm = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
+              disabled={isLoading}
+              className={`input-field ${emailError ? 'border-red-500' : ''}`}
             />
+            {emailError && (
+              <p className="text-sm text-red-500 mt-1">{emailError}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -93,7 +112,8 @@ const SignUpForm = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
+              disabled={isLoading}
+              className={`input-field ${passwordError ? 'border-red-500' : ''}`}
             />
           </div>
           <div className="space-y-2">
@@ -105,21 +125,31 @@ const SignUpForm = () => {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="input-field"
+              disabled={isLoading}
+              className={`input-field ${passwordError ? 'border-red-500' : ''}`}
             />
-            {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
+            {passwordError && (
+              <p className="text-sm text-red-500 mt-1">{passwordError}</p>
+            )}
           </div>
           <Button type="submit" className="w-full btn-primary" disabled={isLoading}>
-            {isLoading ? 'Creating account...' : 'Sign Up'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              'Create Account'
+            )}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="flex flex-col">
         <p className="text-sm text-muted-foreground mt-2">
           Already have an account?{' '}
-          <a href="/signin" className="text-brand-purple hover:text-brand-purple-dark">
+          <Link to="/signin" className="text-brand-purple hover:text-brand-purple-dark">
             Sign in
-          </a>
+          </Link>
         </p>
       </CardFooter>
     </Card>

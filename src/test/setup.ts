@@ -3,6 +3,7 @@ import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 import { mockIntersectionObserver } from './utils/testHelpers';
+import { TextEncoder, TextDecoder } from 'util';
 
 // Extend Vitest's expect method with Testing Library matchers
 expect.extend(matchers);
@@ -187,4 +188,26 @@ vi.mock('react-router-dom', async () => {
 afterEach(() => {
   vi.clearAllMocks();
   window.fetch = originalFetch;
-}); 
+});
+
+// Mock IntersectionObserver
+const mockIntersectionObserver = vi.fn();
+mockIntersectionObserver.mockReturnValue({
+  observe: () => null,
+  unobserve: () => null,
+  disconnect: () => null,
+});
+window.IntersectionObserver = mockIntersectionObserver;
+
+// Mock ResizeObserver
+const mockResizeObserver = vi.fn();
+mockResizeObserver.mockReturnValue({
+  observe: () => null,
+  unobserve: () => null,
+  disconnect: () => null,
+});
+window.ResizeObserver = mockResizeObserver;
+
+// Polyfill TextEncoder/TextDecoder
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder; 
