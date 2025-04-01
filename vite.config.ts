@@ -24,5 +24,12 @@ export default defineConfig(({ mode }) => ({
     // Explicitly define environment variables to ensure they're available at build time
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || ''),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || '')
+  },
+  build: {
+    sourcemap: mode === 'development',
+    rollupOptions: {
+      // Ensure that rollup doesn't get confused by TypeScript options
+      treeshake: true
+    }
   }
 }))
