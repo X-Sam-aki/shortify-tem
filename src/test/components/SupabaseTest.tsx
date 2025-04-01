@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, checkSupabaseConnection } from '../../integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 export function SupabaseTest() {
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
@@ -50,6 +51,21 @@ export function SupabaseTest() {
         <p className="text-xs text-gray-500 mt-2">
           Make sure these environment variables are properly set in your .env file.
         </p>
+        
+        <div className="mt-4">
+          <h3 className="text-md font-medium mb-2">How to Fix</h3>
+          <ol className="text-sm list-decimal list-inside space-y-1">
+            <li>Create a <span className="font-mono">.env</span> file in the root of your project</li>
+            <li>Add the following lines:
+              <pre className="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+                VITE_SUPABASE_URL=your_supabase_url<br/>
+                VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+              </pre>
+            </li>
+            <li>Replace with your actual Supabase URL and anon key</li>
+            <li>Restart your development server</li>
+          </ol>
+        </div>
       </div>
     </div>
   );
