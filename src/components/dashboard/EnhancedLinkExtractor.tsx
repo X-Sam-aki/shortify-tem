@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -283,4 +284,4 @@ const EnhancedLinkExtractor = () => {
   );
 };
 
-export default EnhancedLinkExtractor; 
+export default EnhancedLinkExtractor;
