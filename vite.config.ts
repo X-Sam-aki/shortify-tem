@@ -13,5 +13,11 @@ export default defineConfig({
   },
   server: {
     port: 8080
+  },
+  // Make sure environment variables are properly loaded
+  define: {
+    // Explicitly define environment variables to ensure they're available at build time
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || ''),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || '')
   }
 })
