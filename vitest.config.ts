@@ -8,9 +8,7 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [
     react(),
-    tsconfigPaths({
-      projects: ['./tsconfig.test.json'],
-    }),
+    tsconfigPaths(),
   ],
   test: {
     globals: true,
