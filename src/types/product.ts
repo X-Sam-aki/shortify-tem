@@ -1,12 +1,17 @@
 
 export interface Product {
-  id: string;
   title: string;
-  price: number;
   description: string;
-  images: string[];
+  price: number;
+  originalPrice?: number;
   rating: number;
   reviews: number;
-  discount?: string;
-  originalPrice?: string;
+  images: string[];
+  videos?: string[];
+  url?: string;
+  platform?: string;
+  timestamp?: string;
+  aiEnhanced?: boolean;
+  aiSummary?: string;
+  // Include any other properties used in the codebase
 }
