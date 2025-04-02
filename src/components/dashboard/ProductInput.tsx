@@ -22,7 +22,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, savedProduct }) =
   // If there's a saved product, pre-populate the field
   useEffect(() => {
     if (savedProduct) {
-      setUrl(savedProduct.url || `https://www.temu.com/product-${savedProduct.id}.html`);
+      setUrl(savedProduct.url || (savedProduct.id ? `https://www.temu.com/product-${savedProduct.id}.html` : ''));
     }
   }, [savedProduct]);
 

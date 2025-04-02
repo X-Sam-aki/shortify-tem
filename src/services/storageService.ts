@@ -1,4 +1,5 @@
-import { DatabaseService } from './databaseService';
+import { createClient } from '@supabase/supabase-js';
+import { DatabaseError } from '@/types/errors';
 import { logger } from '@/utils/logger';
 import { Supabase } from '@supabase/supabase-js';
 
@@ -34,7 +35,7 @@ export class StorageService {
 
   private constructor() {
     this.databaseService = DatabaseService.getInstance();
-    this.supabase = Supabase.createClient(
+    this.supabase = createClient(
       process.env.REACT_APP_SUPABASE_URL,
       process.env.REACT_APP_SUPABASE_ANON_KEY
     );

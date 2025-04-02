@@ -1,4 +1,3 @@
-
 import { Product } from '@/types/product';
 import { TemuExtractor } from './extractors/temuExtractor';
 

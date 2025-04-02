@@ -1,4 +1,3 @@
-
 import { Product } from '@/types/product';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -98,7 +97,7 @@ export const extractProductData = async (url: string): Promise<Product> => {
     const productData = data as Product;
     
     // Validate that we have all required fields
-    if (!productData.id || !productData.title || productData.price === undefined || !productData.images) {
+    if (!productData.title || productData.price === undefined || !productData.images) {
       throw new Error('Incomplete product data returned from extraction');
     }
 

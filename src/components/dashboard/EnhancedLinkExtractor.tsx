@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -165,7 +164,6 @@ const EnhancedLinkExtractor = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* URL Input and Extract Button */}
           <div className="flex gap-2">
             <Input
               placeholder="Enter Temu product URL"

@@ -47,7 +47,7 @@ export function LinkExtractor() {
 
   const { data: product, isLoading, error, refetch } = useQuery({
     queryKey: ['product', url, enhanceWithAI],
-    queryFn: () => extractProductData(url, enhanceWithAI),
+    queryFn: () => extractProductData(url),
     enabled: !!url,
     retry: 2,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
