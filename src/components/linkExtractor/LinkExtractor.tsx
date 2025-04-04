@@ -51,7 +51,6 @@ export function LinkExtractor() {
     enabled: !!url,
     retry: 2,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (replaces cacheTime)
   });
 
   const handleUrlSubmit = useCallback((e: React.FormEvent) => {

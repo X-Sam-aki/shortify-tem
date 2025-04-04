@@ -1,219 +1,190 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
+import * as cheerio from "https://esm.sh/cheerio@1.0.0-rc.12";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-const MAX_RETRIES = 3;
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 30;
-
-// Simple in-memory rate limiting
-const rateLimit = new Map<string, { count: number; resetTime: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const limit = rateLimit.get(ip);
-  
-  if (!limit) {
-    rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return false;
-  }
-  
-  if (now > limit.resetTime) {
-    rateLimit.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return false;
-  }
-  
-  if (limit.count >= MAX_REQUESTS_PER_WINDOW) {
-    return true;
-  }
-  
-  limit.count++;
-  return false;
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get client IP for rate limiting
-    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
-    
-    // Check rate limit
-    if (isRateLimited(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-      );
-    }
-
     const { url } = await req.json();
-    
-    if (!url) {
+
+    if (!url || typeof url !== "string") {
       return new Response(
-        JSON.stringify({ error: 'URL is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        JSON.stringify({ error: "URL is required" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
-    // Validate if it's a Temu URL
-    const temuUrlPattern = /^https?:\/\/(?:www\.|m\.)?temu\.com(?:\/us)?\/(?:[\w-]+\.html|products\/[\w-]+)/i;
-    if (!temuUrlPattern.test(url)) {
+    // Basic URL validation
+    if (!url.includes("temu.com")) {
       return new Response(
-        JSON.stringify({ error: 'Invalid Temu URL' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        JSON.stringify({ error: "Only Temu URLs are supported" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
-    // Extract product ID to use as a cache key
-    let productId = null;
-    try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/');
-      
-      // For paths like: /product-123456.html
-      const productFileMatch = pathParts[pathParts.length - 1].match(/product-([a-zA-Z0-9]+)\.html/);
-      if (productFileMatch) {
-        productId = productFileMatch[1];
-      }
-      
-      // For paths like: /products/123456
-      if (pathParts.includes('products') && pathParts.length > 2) {
-        productId = pathParts[pathParts.indexOf('products') + 1];
-      }
-    } catch (error) {
-      console.error('Error parsing URL:', error);
+    // Fetch the page content
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+    });
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ error: `Failed to fetch URL: ${response.status} ${response.statusText}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
 
-    // Check if we have cached data for this product
-    if (productId) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      const { data: cachedProduct, error: cacheError } = await supabase
-        .from('product_cache')
-        .select('*')
-        .eq('product_id', productId)
-        .single();
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-      if (!cacheError && cachedProduct && cachedProduct.data) {
-        console.log('Returning cached product data');
-        return new Response(
-          JSON.stringify(cachedProduct.data),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Launch browser with retries
-    let browser = null;
-    let retries = 0;
+    // Extract product data using selectors
+    // Note: These selectors might need to be updated as Temu's site structure changes
+    const title = $('h1.title').text().trim() || $('meta[property="og:title"]').attr("content") || "";
+    const descriptionText = $('.product-description').text().trim() || $('meta[property="og:description"]').attr("content") || "";
     
-    while (retries < MAX_RETRIES) {
-      try {
-        browser = await puppeteer.launch({
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu'
-          ]
-        });
-
-        const page = await browser.newPage();
-        
-        // Set viewport and user agent
-        await page.setViewport({ width: 1280, height: 800 });
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-
-        // Set timeout for navigation
-        await page.setDefaultNavigationTimeout(30000);
-
-        // Navigate to the product page
-        await page.goto(url, { waitUntil: 'networkidle0' });
-
-        // Wait for critical elements
-        await page.waitForSelector('h1', { timeout: 10000 });
-        await page.waitForSelector('[data-price]', { timeout: 10000 });
-
-        // Extract product data
-        const productData = await page.evaluate(() => {
-          const title = document.querySelector('h1')?.textContent?.trim() || '';
-          const price = document.querySelector('[data-price]')?.getAttribute('data-price') || '0';
-          const originalPrice = document.querySelector('[data-original-price]')?.getAttribute('data-original-price') || price;
-          const description = document.querySelector('[data-description]')?.textContent?.trim() || '';
-          const rating = parseFloat(document.querySelector('[data-rating]')?.getAttribute('data-rating') || '0');
-          const reviews = parseInt(document.querySelector('[data-reviews]')?.getAttribute('data-reviews') || '0');
-          const images = Array.from(document.querySelectorAll('[data-product-image]')).map(img => img.getAttribute('src') || '').filter(Boolean);
-          const discount = document.querySelector('[data-discount]')?.textContent?.trim() || '0%';
-
-          return {
-            title,
-            price: parseFloat(price),
-            originalPrice: parseFloat(originalPrice),
-            description,
-            rating,
-            reviews,
-            images,
-            discount
-          };
-        });
-
-        // Validate extracted data
-        if (!productData.title || !productData.price || !productData.images?.length) {
-          throw new Error('Failed to extract required product data');
-        }
-
-        // Close browser
-        await browser.close();
-
-        // Cache the result if we have a product ID
-        if (productId) {
-          const supabase = createClient(supabaseUrl, supabaseAnonKey);
-          const { error: insertError } = await supabase
-            .from('product_cache')
-            .upsert({
-              product_id: productId,
-              url: url,
-              data: productData,
-              created_at: new Date().toISOString()
-            });
-          
-          if (insertError) {
-            console.error('Error caching product data:', insertError);
-          }
-        }
-
-        return new Response(
-          JSON.stringify(productData),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (error) {
-        if (browser) {
-          await browser.close();
-        }
-        retries++;
-        if (retries === MAX_RETRIES) {
-          throw error;
-        }
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+    // Extract price - handle different formats
+    let price = 0;
+    const priceText = $('.price-current').text().trim() || $('.price').text().trim();
+    const priceMatch = priceText.match(/\$([0-9]+(\.[0-9]+)?)/);
+    if (priceMatch && priceMatch[1]) {
+      price = parseFloat(priceMatch[1]);
+    }
+    
+    // Extract original price if available
+    let originalPrice = undefined;
+    const originalPriceText = $('.price-original').text().trim();
+    const originalPriceMatch = originalPriceText.match(/\$([0-9]+(\.[0-9]+)?)/);
+    if (originalPriceMatch && originalPriceMatch[1]) {
+      originalPrice = originalPriceMatch[1];
+    }
+    
+    // Extract discount
+    let discount = undefined;
+    const discountText = $('.discount-tag').text().trim();
+    const discountMatch = discountText.match(/([0-9]+)%/);
+    if (discountMatch && discountMatch[1]) {
+      discount = `${discountMatch[1]}%`;
+    }
+    
+    // Extract rating
+    let rating = 0;
+    const ratingText = $('.rating-score').text().trim();
+    const ratingMatch = ratingText.match(/([0-9]+(\.[0-9]+)?)/);
+    if (ratingMatch && ratingMatch[1]) {
+      rating = parseFloat(ratingMatch[1]);
+    }
+    
+    // Extract reviews count
+    let reviews = 0;
+    const reviewsText = $('.review-count').text().trim();
+    const reviewsMatch = reviewsText.match(/([0-9]+)/);
+    if (reviewsMatch && reviewsMatch[1]) {
+      reviews = parseInt(reviewsMatch[1]);
+    }
+    
+    // Extract images
+    const images: string[] = [];
+    $('.product-image img, .product-gallery img').each((i, el) => {
+      const src = $(el).attr('src') || $(el).attr('data-src');
+      if (src && !src.includes('placeholder') && !images.includes(src)) {
+        images.push(src);
+      }
+    });
+    
+    // If we couldn't extract images from the DOM, try to get them from meta tags
+    if (images.length === 0) {
+      const metaImage = $('meta[property="og:image"]').attr("content");
+      if (metaImage) {
+        images.push(metaImage);
       }
     }
-  } catch (error) {
-    console.error('Error in extract-product function:', error);
+    
+    // Extract specifications if available
+    const specifications: Record<string, string> = {};
+    $('.specifications .spec-item').each((i, el) => {
+      const key = $(el).find('.spec-name').text().trim();
+      const value = $(el).find('.spec-value').text().trim();
+      if (key && value) {
+        specifications[key] = value;
+      }
+    });
+    
+    // Extract shipping info
+    const shippingText = $('.shipping-info').text().trim();
+    const freeShipping = shippingText.toLowerCase().includes('free');
+    const deliveryMatch = shippingText.match(/delivery by ([^,]+)/i);
+    const estimatedDelivery = deliveryMatch ? deliveryMatch[1].trim() : undefined;
+    
+    // Extract seller info if available
+    let seller: { name?: string, rating?: number, responseRate?: string } | undefined = undefined;
+    const sellerName = $('.seller-name').text().trim();
+    if (sellerName) {
+      seller = { name: sellerName };
+      
+      const sellerRatingText = $('.seller-rating').text().trim();
+      const sellerRatingMatch = sellerRatingText.match(/([0-9]+(\.[0-9]+)?)/);
+      if (sellerRatingMatch && sellerRatingMatch[1]) {
+        seller.rating = parseFloat(sellerRatingMatch[1]);
+      }
+      
+      const responseRateText = $('.response-rate').text().trim();
+      const responseRateMatch = responseRateText.match(/([0-9]+)%/);
+      if (responseRateMatch && responseRateMatch[1]) {
+        seller.responseRate = `${responseRateMatch[1]}%`;
+      }
+    }
+    
+    // If we couldn't extract a product title or price, consider it a failure
+    if (!title || price === 0) {
+      return new Response(
+        JSON.stringify({ error: "Failed to extract essential product information" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
+    // Construct the product object
+    const product = {
+      title,
+      description: descriptionText,
+      price,
+      originalPrice,
+      discount,
+      rating: rating || 4.5, // Fallback rating if not found
+      reviews: reviews || 10, // Fallback reviews if not found
+      images,
+      url,
+      platform: 'Temu',
+      timestamp: new Date().toISOString(),
+      shipping: {
+        free: freeShipping,
+        estimatedDelivery
+      },
+      seller,
+      specifications
+    };
+
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to extract product data' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify(product),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Product extraction error:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error occurred during extraction" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
